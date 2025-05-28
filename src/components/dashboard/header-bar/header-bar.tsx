@@ -32,146 +32,148 @@ export function HeaderBar() {
 
   return (
     <div className="header-bar">
-      <div className="header-channel-section">
-        <Dropdown>
-          <Dropdown.Trigger asChild>
-            <div className="header-dropdown-trigger channel-trigger">
-              <ChannelIcon />
-              <span className="header-label">
-                {selectedPeer ? selectedPeer.name : "Select Peer"}
-              </span>
-            </div>
-          </Dropdown.Trigger>
-          <Dropdown.Content>
-            {peers.length > 0 ? (
-              peers.map((channel) => (
-                <Dropdown.Item
-                  key={channel.id}
-                  onSelect={() => switchPeer(channel)}>
-                  <div className="dropdown-item-content">
-                    <span>{channel.name}</span>
-                    {selectedPeer?.id === channel.id && (
-                      <span className="check-mark">✓</span>
-                    )}
-                  </div>
-                </Dropdown.Item>
-              ))
-            ) : (
-              <Dropdown.Item disabled>No peers available</Dropdown.Item>
-            )}
-          </Dropdown.Content>
-        </Dropdown>
-      </div>
-
-      <div className="header-identity-section">
-        <div className="identity-container">
+      <div className="header-bar-inner">
+        <div className="header-channel-section">
           <Dropdown>
             <Dropdown.Trigger asChild>
-              <div className="header-dropdown-trigger identity-trigger">
-                <div className="identity-icon-container">
-                  <IdentityIcon />
-                  {selectedIdentity && (
-                    <div
-                      className={`connection-indicator ${isIdentityConnectedToSite(selectedIdentity) ? "connected" : "disconnected"}`}
-                    />
-                  )}
-                </div>
+              <div className="header-dropdown-trigger channel-trigger">
+                <ChannelIcon />
                 <span className="header-label">
-                  {selectedIdentity
-                    ? selectedIdentity.label
-                    : "Select Identity"}
+                  {selectedPeer ? selectedPeer.name : "Select Peer"}
                 </span>
               </div>
             </Dropdown.Trigger>
-            <Dropdown.Content align="end">
-              {/* Connection Status */}
-              {selectedIdentity && (
-                <div className="connection-status-section">
-                  <div className="status-label">STATUS</div>
-                  <div className="status-text">
-                    {selectedIdentity.label}{" "}
-                    {isIdentityConnectedToSite(selectedIdentity)
-                      ? "is connected to"
-                      : "isn't connected to"}{" "}
-                    {currentHostname}
-                  </div>
-                  <button
-                    className={`connection-button ${isIdentityConnectedToSite(selectedIdentity) ? "disconnect" : "connect"}`}
-                    onClick={() => toggleConnection(selectedIdentity)}>
-                    {isIdentityConnectedToSite(selectedIdentity)
-                      ? "Disconnect"
-                      : "Connect"}
-                  </button>
-                </div>
-              )}
-
-              {/* Identity List */}
-              <div className="identity-list">
-                {identities.length > 0 ? (
-                  identities.map((identity) => {
-                    const isConnected = isIdentityConnectedToSite(identity)
-                    const isSelected =
-                      selectedIdentity?.label === identity.label
-
-                    return (
-                      <Dropdown.Item
-                        key={identity.label}
-                        onSelect={() => handleIdentitySelect(identity)}>
-                        <div className="dropdown-item-content identity-item">
-                          <div
-                            className={`identity-connection-dot ${isConnected ? "connected" : "disconnected"} ${isSelected ? "selected" : ""}`}
-                          />
-                          <span>{identity.label}</span>
-                        </div>
-                      </Dropdown.Item>
-                    )
-                  })
-                ) : (
-                  <Dropdown.Item disabled>
-                    {selectedPeer
-                      ? "No identities available"
-                      : "Select a channel first"}
+            <Dropdown.Content>
+              {peers.length > 0 ? (
+                peers.map((channel) => (
+                  <Dropdown.Item
+                    key={channel.id}
+                    onSelect={() => switchPeer(channel)}>
+                    <div className="dropdown-item-content">
+                      <span>{channel.name}</span>
+                      {selectedPeer?.id === channel.id && (
+                        <span className="check-mark">✓</span>
+                      )}
+                    </div>
                   </Dropdown.Item>
-                )}
-              </div>
+                ))
+              ) : (
+                <Dropdown.Item disabled>No peers available</Dropdown.Item>
+              )}
             </Dropdown.Content>
           </Dropdown>
+        </div>
 
-          {/* Connection status notification */}
-          {showConnectionStatus &&
-            selectedIdentity &&
-            !isIdentityConnectedToSite(selectedIdentity) && (
-              <div className="connection-notification">
-                <div className="notification-header">
-                  <div className="notification-title">
-                    {selectedIdentity.label}
+        <div className="header-identity-section">
+          <div className="identity-container">
+            <Dropdown>
+              <Dropdown.Trigger asChild>
+                <div className="header-dropdown-trigger identity-trigger">
+                  <div className="identity-icon-container">
+                    <IdentityIcon />
+                    {selectedIdentity && (
+                      <div
+                        className={`connection-indicator ${isIdentityConnectedToSite(selectedIdentity) ? "connected" : "disconnected"}`}
+                      />
+                    )}
                   </div>
-                  <button
-                    className="close-button"
-                    onClick={() => setShowConnectionStatus(false)}>
-                    ×
-                  </button>
+                  <span className="header-label">
+                    {selectedIdentity
+                      ? selectedIdentity.label
+                      : "Select Identity"}
+                  </span>
                 </div>
-                <div className="notification-message">
-                  isn't connected to {currentHostname}
+              </Dropdown.Trigger>
+              <Dropdown.Content align="end">
+                {/* Connection Status */}
+                {selectedIdentity && (
+                  <div className="connection-status-section">
+                    <div className="status-label">STATUS</div>
+                    <div className="status-text">
+                      {selectedIdentity.label}{" "}
+                      {isIdentityConnectedToSite(selectedIdentity)
+                        ? "is connected to"
+                        : "isn't connected to"}{" "}
+                      {currentHostname}
+                    </div>
+                    <button
+                      className={`connection-button ${isIdentityConnectedToSite(selectedIdentity) ? "disconnect" : "connect"}`}
+                      onClick={() => toggleConnection(selectedIdentity)}>
+                      {isIdentityConnectedToSite(selectedIdentity)
+                        ? "Disconnect"
+                        : "Connect"}
+                    </button>
+                  </div>
+                )}
+
+                {/* Identity List */}
+                <div className="identity-list">
+                  {identities.length > 0 ? (
+                    identities.map((identity) => {
+                      const isConnected = isIdentityConnectedToSite(identity)
+                      const isSelected =
+                        selectedIdentity?.label === identity.label
+
+                      return (
+                        <Dropdown.Item
+                          key={identity.label}
+                          onSelect={() => handleIdentitySelect(identity)}>
+                          <div className="dropdown-item-content identity-item">
+                            <div
+                              className={`identity-connection-dot ${isConnected ? "connected" : "disconnected"} ${isSelected ? "selected" : ""}`}
+                            />
+                            <span>{identity.label}</span>
+                          </div>
+                        </Dropdown.Item>
+                      )
+                    })
+                  ) : (
+                    <Dropdown.Item disabled>
+                      {selectedPeer
+                        ? "No identities available"
+                        : "Select a channel first"}
+                    </Dropdown.Item>
+                  )}
                 </div>
-                <div className="notification-actions">
-                  <button
-                    className="cancel-button"
-                    onClick={() => setShowConnectionStatus(false)}>
-                    Cancel
-                  </button>
-                  <button
-                    className="connect-button"
-                    onClick={() => {
-                      toggleConnection(selectedIdentity)
-                      setShowConnectionStatus(false)
-                    }}>
-                    Connect
-                  </button>
+              </Dropdown.Content>
+            </Dropdown>
+
+            {/* Connection status notification */}
+            {showConnectionStatus &&
+              selectedIdentity &&
+              !isIdentityConnectedToSite(selectedIdentity) && (
+                <div className="connection-notification">
+                  <div className="notification-header">
+                    <div className="notification-title">
+                      {selectedIdentity.label}
+                    </div>
+                    <button
+                      className="close-button"
+                      onClick={() => setShowConnectionStatus(false)}>
+                      ×
+                    </button>
+                  </div>
+                  <div className="notification-message">
+                    isn't connected to {currentHostname}
+                  </div>
+                  <div className="notification-actions">
+                    <button
+                      className="cancel-button"
+                      onClick={() => setShowConnectionStatus(false)}>
+                      Cancel
+                    </button>
+                    <button
+                      className="connect-button"
+                      onClick={() => {
+                        toggleConnection(selectedIdentity)
+                        setShowConnectionStatus(false)
+                      }}>
+                      Connect
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+          </div>
         </div>
       </div>
 
