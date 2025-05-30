@@ -33,14 +33,6 @@ window.addEventListener("message", (event) => {
 })
 
 port.onMessage.addListener((response) => {
-  // Receive response from background script and forward to the injected script /dapp
+  // Receive response and events from background script and forward to the dapp via the injected script
   window.postMessage({ ...response, from: "content" }, "*")
-})
-
-// Receive events and forward to the dapp via the injected script
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.kind === "event" || message.from === "background") {
-    window.postMessage({ ...message, from: "content" }, "*")
-  }
-  return false
 })

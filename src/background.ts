@@ -120,27 +120,14 @@ async function emitEventToDapp({
   result: any
 }) {
   // Notify content scripts (and thus injected scripts) about the event
-  chrome.tabs.query({}, (tabs) => {
-    tabs.forEach((tab) => {
-      if (tab.id !== undefined) {
-        chrome.tabs.sendMessage(
-          tab.id,
-          {
-            type,
-            result,
-            kind: "event",
-            from: "background"
-          },
-          (response) => {
-            if (chrome.runtime.lastError) {
-              // Ignore errors from tabs without your content script
-              return
-            }
-          }
-        )
-      }
+  for (const port of connections.values()) {
+    port.postMessage({
+      type,
+      result,
+      kind: "event",
+      from: "background"
     })
-  })
+  }
 }
 
 // --- Vault Lifecycle Management Listener ---
@@ -539,10 +526,19 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
   return false
 })
 
+// Track active connections
+const connections = new Map<string, chrome.runtime.Port>()
+
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name !== "fabric") return
 
   const portRequestIds = new Set<string>()
+
+  // Store the connection with a unique ID
+  const tabId = port.sender?.tab?.id
+  if (tabId) {
+    connections.set(`${tabId}:${port.name}`, port)
+  }
 
   port.onMessage.addListener(async (message) => {
     const { id, method } = message
@@ -621,6 +617,11 @@ chrome.runtime.onConnect.addListener((port) => {
     // This can be complex if multiple dApps share one WebSocket.
     // A simple approach is to have a counter for active subscriptions per WS,
     // and close when count hits zero.
+
+    if (tabId) {
+      connections.delete(`${tabId}:${port.name}`)
+      console.log(`❌ Port disconnected: ${port.name} from tab ${tabId}`)
+    }
   })
 })
 

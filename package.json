@@ -36,7 +36,7 @@
     ],
     "permissions": [
       "storage",
-      "tabs"
+      "activeTab"
     ],
     "web_accessible_resources": [
       {
