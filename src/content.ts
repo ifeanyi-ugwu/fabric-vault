@@ -1,4 +1,5 @@
 import type { PlasmoCSConfig } from "plasmo"
+import INJECTED_SCRIPT_PATH from "url:~src/injected"
 
 export const config: PlasmoCSConfig = {
   matches: ["<all_urls>"],
@@ -8,7 +9,7 @@ export const config: PlasmoCSConfig = {
 
 function injectScript() {
   const script = document.createElement("script")
-  script.src = chrome.runtime.getURL("src/injected.js")
+  script.src = INJECTED_SCRIPT_PATH
   script.type = "text/javascript"
   script.onload = () => {
     script.remove() // Clean up after injection
