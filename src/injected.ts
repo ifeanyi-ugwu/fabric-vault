@@ -41,19 +41,21 @@ window.fabric = {
       )
     })
   },
-  on: (event, handler) => {
+  on(event, handler) {
     if (!listeners.has(event)) {
       listeners.set(event, new Set())
     }
     listeners.get(event)?.add(handler)
+    return this
   },
-  removeListener: (event, handler) => {
+  removeListener(event, handler) {
     const eventListeners = listeners.get(event)
     if (eventListeners) {
       eventListeners.delete(handler)
     }
-  },
-  isFabricVault: true
+    return this
+  }
+  //isFabricVault: true
 }
 
 function generateId() {
