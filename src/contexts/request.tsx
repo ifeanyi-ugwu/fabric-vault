@@ -30,7 +30,7 @@ export function RequestProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    chrome.storage.local.get(`pendingRequest_${id}`).then((result) => {
+    chrome.storage.session.get(`pendingRequest_${id}`).then((result) => {
       const storedRequest = result[`pendingRequest_${id}`]
       if (storedRequest) {
         setRequest(storedRequest)

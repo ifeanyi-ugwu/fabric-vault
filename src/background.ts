@@ -1004,7 +1004,7 @@ async function openAuthorizationPopup(
   }
 
   // Save request for the popup to consume
-  chrome.storage.local.set({
+  await chrome.storage.session.set({
     [`pendingRequest_${id}`]: { id, payload: message, type, origin }
   })
 
