@@ -8,7 +8,7 @@ export const config: PlasmoCSConfig = {
 
 function injectScript() {
   const script = document.createElement("script")
-  script.src = chrome.runtime.getURL("injected.js")
+  script.src = chrome.runtime.getURL("src/injected.js")
   script.type = "text/javascript"
   script.onload = () => {
     script.remove() // Clean up after injection
