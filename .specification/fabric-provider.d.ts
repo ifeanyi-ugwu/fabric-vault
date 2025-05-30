@@ -97,9 +97,3 @@ interface FabricSubscription extends ProviderMessage {
     readonly result: unknown
   }
 }
-
-declare global {
-  interface Window {
-    fabric: FabricProvider
-  }
-}
