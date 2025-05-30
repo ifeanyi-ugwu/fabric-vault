@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FabricVault API Test</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        margin: 20px;
+        background-color: #f4f4f4;
+        color: #333;
+        display: flex;
+        flex-direction: column;
+        min-height: 95vh; /* Ensure body takes full height for sticky footer effect */
+        transition: padding-bottom 0.3s ease-out; /* Smooth transition for padding */
+      }
+      h1 {
+        color: #0056b3;
+        margin-bottom: 20px;
+      }
+      .main-content {
+        flex-grow: 1;
+      }
+      .button-group,
+      .transaction-builder {
+        background-color: #ffffff;
+        border: 1px solid #ced4da;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      }
+      h2 {
+        color: #007bff;
+        margin-top: 0;
+        margin-bottom: 15px;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 10px;
+      }
+      button {
+        background-color: #007bff;
+        color: white;
+        padding: 10px 15px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        margin: 5px;
+        font-size: 16px;
+        transition: background-color 0.2s ease;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      button:disabled {
+        background-color: #a0a0a0;
+        cursor: not-allowed;
+      }
+      .form-group {
+        margin-bottom: 15px;
+      }
+      .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+        color: #555;
+      }
+      .form-group input[type="text"],
+      .form-group textarea,
+      .form-group select {
+        width: calc(100% - 22px);
+        padding: 10px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 1rem;
+      }
+      .form-group textarea {
+        min-height: 80px;
+        resize: vertical;
+      }
+
+      /* Output Area - Mobile (Bottom Sheet) */
+      #output {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 0; /* Start with 0 height, will expand with javascript */
+        background-color: #e9ecef;
+        border-top: 1px solid #ced4da;
+        border-radius: 8px 8px 0 0;
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+        font-family: monospace;
+        z-index: 1000;
+        transition: height 0.3s ease-out;
+        display: flex;
+        flex-direction: column;
+        box-sizing: border-box;
+      }
+
+      #output-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        border-bottom: 1px solid #dcdcdc;
+        padding: 5px 15px;
+        flex-shrink: 0;
+        box-sizing: border-box;
+      }
+
+      #output-header h3 {
+        margin: 0;
+        color: #007bff;
+      }
+
+      #clear-output-btn {
+        background-color: #dc3545;
+        margin: 0;
+        padding: 5px 10px;
+        font-size: 0.9em;
+      }
+      #clear-output-btn:hover {
+        background-color: #c82333;
+      }
+
+      #output-content {
+        flex-grow: 1;
+        overflow-y: auto;
+        padding: 0 15px 15px 15px;
+        box-sizing: border-box;
+      }
+      #output-content p {
+        margin: 0 0 10px 0;
+        word-wrap: break-word; /* Ensure long words wrap */
+        overflow-wrap: break-word; /* Ensure long words wrap */
+        white-space: pre-wrap; /* Preserve formatting and line breaks */
+      }
+
+      .alert {
+        padding: 10px;
+        margin-bottom: 15px;
+        border-radius: 5px;
+        font-weight: bold;
+      }
+      .alert-success {
+        background-color: #d4edda;
+        color: #155724;
+        border-color: #c3e6cb;
+      }
+      .alert-danger {
+        background-color: #f8d7da;
+        color: #721c24;
+        border-color: #f5c6cb;
+      }
+      .alert-info {
+        background-color: #d1ecf1;
+        color: #0c5460;
+        border-color: #bee5eb;
+      }
+
+      /* Media Query for Larger Screens (Sidebar) */
+      @media (min-width: 768px) {
+        body {
+          flex-direction: row;
+          padding-bottom: 0 !important; /* Remove bottom padding on desktop */
+        }
+
+        .main-content {
+          flex-grow: 1;
+          margin-right: 20px;
+        }
+
+        #output {
+          position: sticky;
+          top: 20px;
+          right: 20px;
+          bottom: 20px;
+          width: 350px;
+          height: auto; /* Auto height for sidebar */
+          max-height: calc(100vh - 40px);
+          border: 1px solid #ced4da;
+          border-radius: 8px;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+          transform: translateY(
+            0
+          ); /* Ensure it's not hidden by mobile styles */
+          padding: 0; /* Reset padding for consistency with header/content paddings */
+        }
+        #output-header {
+          padding: 15px; /* Standard padding for desktop sidebar header */
+        }
+        #output-content {
+          padding: 0 15px 15px 15px; /* Standard padding for desktop sidebar content */
+        }
+      }
+
+      /* Specific Media Query for Mobile (to add bottom padding when sheet is open) */
+      @media (max-width: 767px) {
+        body.sheet-open {
+          padding-bottom: 40vh; /* Add padding equal to sheet height */
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="main-content">
+      <h1>FabricVault API Test</h1>
+
+      <div class="button-group">
+        <h2>Wallet Connection & Identities</h2>
+        <button id="connect-btn">Connect Wallet</button>
+        <button id="get-identities-btn">Get Identities</button>
+
+        <div class="form-group">
+          <label for="identity-selector">Select Identity:</label>
+          <select id="identity-selector" disabled>
+            <option value="">-- Please fetch identities --</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="button-group">
+        <h2>Specific Transactions</h2>
+        <p>These buttons use pre-defined parameters and a selected identity.</p>
+        <button id="evaluate-all-assets-btn" disabled>
+          Evaluate: GetAllAssets
+        </button>
+        <button id="submit-transfer-asset-btn" disabled>
+          Submit: TransferAsset ('asset6', 'Christopher')
+        </button>
+      </div>
+
+      <div class="transaction-builder">
+        <h2>Generic Transaction Builder</h2>
+        <div class="form-group">
+          <label for="transaction-type">Transaction Type:</label>
+          <select id="transaction-type">
+            <option value="evaluate">Evaluate Transaction</option>
+            <option value="submit">Submit Transaction</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="channel-input">Channel Name:</label>
+          <input
+            type="text"
+            id="channel-input"
+            value="mychannel"
+            placeholder="e.g., mychannel"
+          />
+        </div>
+        <div class="form-group">
+          <label for="chaincode-input">Chaincode Name:</label>
+          <input
+            type="text"
+            id="chaincode-input"
+            value="basic"
+            placeholder="e.g., basic"
+          />
+        </div>
+        <div class="form-group">
+          <label for="function-input">Function Name (fn):</label>
+          <input
+            type="text"
+            id="function-input"
+            value="CreateAsset"
+            placeholder="e.g., CreateAsset"
+          />
+        </div>
+        <div class="form-group">
+          <label for="args-input"
+            >Arguments (args): Comma-separated values (e.g., arg1, arg2, "arg
+            with space")</label
+          >
+          <input
+            type="text"
+            id="args-input"
+            value="asset10,blue,50,Tom,1000"
+            placeholder="e.g., arg1, arg2, 123"
+          />
+        </div>
+        <button id="execute-generic-transaction-btn" disabled>
+          Execute Generic Transaction
+        </button>
+      </div>
+
+      <div class="button-group">
+        <h2>Event Subscriptions</h2>
+        <button id="subscribe-block-event-btn" disabled>
+          Subscribe to Block Events
+        </button>
+        <button id="subscribe-chaincode-event-btn" disabled>
+          Subscribe to Chaincode Events
+        </button>
+      </div>
+    </div>
+
+    <div id="output">
+      <div id="output-header">
+        <h3>Output & Events</h3>
+        <button id="clear-output-btn">Clear</button>
+      </div>
+      <div id="output-content">
+        <p class="alert alert-info">
+          Test results and events will appear here...
+        </p>
+      </div>
+    </div>
+
+    <script>
+      const outputDiv = document.getElementById("output");
+      const outputContent = document.getElementById("output-content");
+      const clearOutputBtn = document.getElementById("clear-output-btn");
+      const identitySelector = document.getElementById("identity-selector");
+      const connectBtn = document.getElementById("connect-btn");
+      const getIdentitiesBtn = document.getElementById("get-identities-btn");
+      const evaluateAllAssetsBtn = document.getElementById(
+        "evaluate-all-assets-btn"
+      );
+      const submitTransferAssetBtn = document.getElementById(
+        "submit-transfer-asset-btn"
+      );
+      const executeGenericTransactionBtn = document.getElementById(
+        "execute-generic-transaction-btn"
+      );
+      const subscribeBlockEventBtn = document.getElementById(
+        "subscribe-block-event-btn"
+      );
+      const subscribeChaincodeEventBtn = document.getElementById(
+        "subscribe-chaincode-event-btn"
+      );
+
+      let availableIdentities = []; // Store fetched identities
+
+      function displayOutput(label, data, type = "info") {
+        const timestamp = new Date().toLocaleTimeString();
+        let formattedData;
+        try {
+          formattedData = JSON.stringify(data, null, 2);
+        } catch (e) {
+          formattedData = String(data); // Fallback for non-JSON data
+        }
+
+        const alertClass =
+          type === "success"
+            ? "alert-success"
+            : type === "error"
+            ? "alert-danger"
+            : type === "info"
+            ? "alert-info"
+            : "";
+
+        const newOutput = document.createElement("p");
+        newOutput.className = `alert ${alertClass}`;
+        newOutput.innerHTML = `<strong>${timestamp} - ${label}:</strong>\n${formattedData}`;
+        outputContent.prepend(newOutput); // Add new output at the top of output-content
+
+        // Manage output panel visibility and height based on screen size
+        if (window.innerWidth < 768) {
+          outputDiv.style.height = "40vh"; // Set explicit height for mobile bottom sheet
+          outputDiv.style.maxHeight = "40vh"; // Ensure max-height is also applied
+          document.body.classList.add("sheet-open"); // Add class to body for padding
+          outputContent.scrollTop = 0; // Scroll to top of output content on mobile
+        } else {
+          // On desktop, the height is auto via CSS, ensure it's visible if not already
+          // No need to set height here, CSS handles it.
+          // Ensure the output div is not hidden on desktop if it was cleared previously
+          outputDiv.style.height = ""; // Clear any inline height set by mobile
+          outputDiv.style.maxHeight = ""; // Clear any inline max-height
+        }
+      }
+
+      function enableButtons(enable = true) {
+        evaluateAllAssetsBtn.disabled = !enable;
+        submitTransferAssetBtn.disabled = !enable;
+        executeGenericTransactionBtn.disabled = !enable;
+        subscribeBlockEventBtn.disabled = !enable;
+        subscribeChaincodeEventBtn.disabled = !enable;
+        identitySelector.disabled = !enable;
+      }
+
+      function waitForFabricVaultAPI(
+        callback,
+        retryInterval = 100,
+        maxRetries = 50
+      ) {
+        let retries = 0;
+
+        const interval = setInterval(() => {
+          if (typeof window.fabric !== "undefined") {
+            displayOutput(
+              "FabricVault API Status",
+              "API is available!",
+              "success"
+            );
+            clearInterval(interval);
+            callback();
+          } else {
+            retries++;
+            if (retries > maxRetries) {
+              displayOutput(
+                "FabricVault API Status",
+                "API is not available after maximum retries. Please ensure FabricVault is installed and running.",
+                "error"
+              );
+              clearInterval(interval);
+            }
+          }
+        }, retryInterval);
+      }
+
+      async function populateIdentities() {
+        try {
+          const identities = await window.fabric.request({
+            method: "fabric_identities",
+          });
+          availableIdentities = identities;
+
+          identitySelector.innerHTML =
+            '<option value="">-- Select an Identity --</option>';
+          if (identities && identities.length > 0) {
+            identities.forEach((id, index) => {
+              const option = document.createElement("option");
+              option.value = index; // Use index to retrieve full identity object later
+              option.textContent = `${id.label} (MSP: ${id.mspId})`;
+              identitySelector.appendChild(option);
+            });
+            identitySelector.disabled = false;
+            displayOutput("Identities Fetched", identities, "success");
+          } else {
+            displayOutput("Identities Fetched", "No identities found.", "info");
+            identitySelector.disabled = true;
+          }
+        } catch (error) {
+          displayOutput("Error Fetching Identities", error.message, "error");
+          identitySelector.disabled = true;
+        }
+      }
+
+      function getSelectedIdentity() {
+        const selectedIndex = identitySelector.value;
+        if (selectedIndex !== "" && availableIdentities[selectedIndex]) {
+          const selectedId = availableIdentities[selectedIndex];
+          return {
+            certificate: selectedId.certificate,
+            mspId: selectedId.mspId,
+          };
+        }
+        displayOutput(
+          "Identity Error",
+          "Please select an identity first.",
+          "error"
+        );
+        return null;
+      }
+
+      function initializeEventListeners() {
+        displayOutput("Initialization", "Event listeners are being set up...");
+        enableButtons(false); // Disable until API is ready and identities are fetched
+
+        clearOutputBtn.addEventListener("click", () => {
+          outputContent.innerHTML =
+            '<p class="alert alert-info">Test results and events will appear here...</p>';
+
+          //outputDiv.classList.remove("show"); // Hide the output panel on mobile
+          //document.body.classList.remove("sheet-open"); // Remove class from body to remove padding
+
+          if (window.innerWidth < 768) {
+            outputDiv.style.height = "0"; // Collapse the bottom sheet
+            outputDiv.style.maxHeight = "0";
+            document.body.classList.remove("sheet-open"); // Remove padding from body
+          }
+          // On desktop, output div remains visible but content is cleared
+        });
+
+        connectBtn.addEventListener("click", async () => {
+          try {
+            const result = await window.fabric.request({
+              method: "fabric_requestIdentities",
+            });
+            displayOutput("Connect Wallet Result", result, "success");
+            await populateIdentities(); // Refresh identities after connecting
+            enableButtons(true);
+          } catch (error) {
+            displayOutput("Connect Wallet Error", error.message, "error");
+          }
+        });
+
+        getIdentitiesBtn.addEventListener("click", async () => {
+          await populateIdentities();
+          enableButtons(true); // Ensure buttons are enabled after identities are loaded
+        });
+
+        evaluateAllAssetsBtn.addEventListener("click", async () => {
+          const identity = getSelectedIdentity();
+          if (!identity) return;
+
+          try {
+            const result = await window.fabric.request({
+              method: "fabric_evaluateTransaction",
+              params: {
+                channel: "mychannel",
+                chaincode: "basic",
+                fn: "GetAllAssets",
+                args: [],
+                identity: identity, // Use the selected identity
+              },
+            });
+            displayOutput("Evaluate GetAllAssets Result", result, "success");
+          } catch (error) {
+            displayOutput(
+              "Evaluate GetAllAssets Error",
+              error.message,
+              "error"
+            );
+          }
+        });
+
+        submitTransferAssetBtn.addEventListener("click", async () => {
+          const identity = getSelectedIdentity();
+          if (!identity) return;
+
+          try {
+            const result = await window.fabric.request({
+              method: "fabric_submitTransaction",
+              params: {
+                channel: "mychannel",
+                chaincode: {
+                  name: "basic",
+                },
+                fn: "TransferAsset",
+                args: ["asset6", "Christopher"], // Hardcoded for this specific test button
+                identity: identity, // Use the selected identity
+              },
+            });
+            displayOutput("Submit TransferAsset Result", result, "success");
+          } catch (error) {
+            displayOutput("Submit TransferAsset Error", error.message, "error");
+          }
+        });
+
+        executeGenericTransactionBtn.addEventListener("click", async () => {
+          const identity = getSelectedIdentity();
+          if (!identity) return;
+
+          const transactionType =
+            document.getElementById("transaction-type").value;
+          const channel = document.getElementById("channel-input").value;
+          const chaincode = document.getElementById("chaincode-input").value;
+          const fn = document.getElementById("function-input").value;
+          const argsInput = document.getElementById("args-input").value;
+
+          let args = [];
+          if (argsInput) {
+            try {
+              // Split by comma, trim spaces, and handle empty strings
+              args = argsInput
+                .split(",")
+                .map((arg) => arg.trim())
+                .filter((arg) => arg !== "");
+            } catch (e) {
+              displayOutput(
+                "Input Error",
+                "Invalid arguments format. Please use comma-separated values.",
+                "error"
+              );
+              return;
+            }
+          }
+
+          if (!channel || !chaincode || !fn) {
+            displayOutput(
+              "Input Error",
+              "Channel, Chaincode, and Function Name are required for generic transaction.",
+              "error"
+            );
+            return;
+          }
+
+          const requestParams = {
+            channel: channel,
+            chaincode: {
+              name: chaincode,
+            },
+            fn: fn,
+            args: args,
+            identity: identity,
+          };
+
+          try {
+            let result;
+            if (transactionType === "evaluate") {
+              result = await window.fabric.request({
+                method: "fabric_evaluateTransaction",
+                params: requestParams,
+              });
+              displayOutput(
+                `Generic Evaluate Transaction Result (${fn})`,
+                result,
+                "success"
+              );
+            } else if (transactionType === "submit") {
+              result = await window.fabric.request({
+                method: "fabric_submitTransaction",
+                params: requestParams,
+              });
+              displayOutput(
+                `Generic Submit Transaction Result (${fn})`,
+                result,
+                "success"
+              );
+            }
+          } catch (error) {
+            displayOutput(
+              `Generic Transaction Error (${fn})`,
+              error.message,
+              "error"
+            );
+          }
+        });
+
+        subscribeBlockEventBtn.addEventListener("click", async () => {
+          const identity = getSelectedIdentity();
+          if (!identity) return;
+
+          try {
+            const result = await window.fabric.request({
+              method: "fabric_subscribe",
+              params: {
+                eventType: "block",
+                channel: "mychannel",
+                identity: identity,
+              },
+            });
+            displayOutput(
+              "Subscription Result (Block Event)",
+              result,
+              "success"
+            );
+          } catch (error) {
+            displayOutput(
+              "Subscription Error (Block Event)",
+              error.message,
+              "error"
+            );
+          }
+        });
+
+        subscribeChaincodeEventBtn.addEventListener("click", async () => {
+          try {
+            const result = await window.fabric.request({
+              method: "fabric_subscribe",
+              params: {
+                eventType: "chaincode",
+                channel: "mychannel",
+                chaincode: "basic",
+              },
+            });
+            displayOutput(
+              "Subscription Result (Chaincode Event)",
+              result,
+              "success"
+            );
+          } catch (error) {
+            displayOutput(
+              "Subscription Error (Chaincode Event)",
+              error.message,
+              "error"
+            );
+          }
+        });
+
+        // Event listeners for FabricVault API events
+        window.fabric.on("connect", (data) => {
+          displayOutput("FabricVault Event: Connected", data, "info");
+        });
+
+        window.fabric.on("disconnect", (data) => {
+          displayOutput("FabricVault Event: Disconnected", data, "info");
+        });
+
+        window.fabric.on("identitiesChanged", (data) => {
+          displayOutput("FabricVault Event: Identities Changed", data, "info");
+          populateIdentities(); // Re-populate identities if they change in the wallet
+        });
+
+        window.fabric.on("peerChanged", (data) => {
+          displayOutput("FabricVault Event: Peer Changed", data, "info");
+        });
+
+        window.fabric.on("fabric_subscription", (data) => {
+          // This event is typically triggered when a new block or chaincode event is received
+          displayOutput(
+            "FabricVault Event: Subscription Received",
+            data,
+            "info"
+          );
+        });
+      }
+
+      // Add a resize listener to handle transitions between mobile/desktop if open
+      window.addEventListener("resize", () => {
+        if (window.innerWidth >= 768) {
+          // On desktop, ensure mobile-specific inline styles are cleared
+          outputDiv.style.height = "";
+          outputDiv.style.maxHeight = "";
+          document.body.classList.remove("sheet-open"); // Remove padding if it was there
+        } else {
+          // On mobile, if output has content, ensure it's shown as a sheet
+          if (
+            outputContent.innerText.trim() !==
+            "Test results and events will appear here..."
+          ) {
+            outputDiv.style.height = "40vh";
+            outputDiv.style.maxHeight = "40vh";
+            document.body.classList.add("sheet-open");
+          }
+        }
+      });
+
+      waitForFabricVaultAPI(initializeEventListeners);
+    </script>
+  </body>
+</html>
