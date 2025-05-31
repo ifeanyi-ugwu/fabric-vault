@@ -5,6 +5,22 @@ export class CryptoManager {
 
   constructor() {}
 
+  async restoreKey(keyData: number[], salt: number[]) {
+    // Import the raw key data back into a CryptoKey
+    this.key = await crypto.subtle.importKey(
+      "raw",
+      new Uint8Array(keyData),
+      { name: "AES-GCM", length: 256 },
+      false,
+      ["encrypt", "decrypt"]
+    )
+  }
+
+  clearKey() {
+    // Clear the crypto key from memory
+    this.key = null
+  }
+
   async deriveKey(password: string, storedSalt?: ArrayBuffer) {
     const encoder = new TextEncoder()
     const passwordBuffer = encoder.encode(password)
@@ -32,11 +48,17 @@ export class CryptoManager {
       },
       importedKey,
       { name: "AES-GCM", length: 256 },
-      false,
+      true, // set to true to allow export
       ["encrypt", "decrypt"]
     )
 
-    return { salt: Array.from(salt) }
+    // Export the key as raw bytes for session storage
+    const exportedKey = await crypto.subtle.exportKey("raw", this.key)
+
+    return {
+      salt: Array.from(salt),
+      key: Array.from(new Uint8Array(exportedKey))
+    }
   }
 
   async encrypt(data: any) {

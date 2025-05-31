@@ -6,27 +6,67 @@ import { CryptoManager } from "~lib/crypto"
 import { Wallet, type PrivateIdentity } from "~lib/wallet"
 
 /**
- * Vault/Wallet must be unlocked to perform any operation involving user identity
+ * Vault/Wallet session management using chrome.storage.session
+ * This approach keeps the wallet unlocked for the browser session without needing to keep the service worker alive
+ * *important: Vault/Wallet must be unlocked to perform any operation involving user identity
  */
+
+// ===============================
+// Session Storage Keys
+// ===============================
+const SESSION_KEYS = {
+  WALLET_UNLOCKED: "wallet_unlocked",
+  DERIVED_KEY: "derived_key",
+  SALT: "wallet_salt"
+} as const
+
 // ===============================
 // Vault Management
 // ===============================
-let isWalletUnlocked = false
 const cryptoManager = new CryptoManager()
 const wallet = new Wallet(cryptoManager)
+
+async function getSessionUnlockStatus(): Promise<boolean> {
+  const result = await chrome.storage.session.get(SESSION_KEYS.WALLET_UNLOCKED)
+  return result[SESSION_KEYS.WALLET_UNLOCKED] === true
+}
+
+async function restoreCryptoManagerFromSession(): Promise<boolean> {
+  try {
+    const sessionData = await chrome.storage.session.get([
+      SESSION_KEYS.DERIVED_KEY,
+      SESSION_KEYS.SALT
+    ])
+
+    if (
+      sessionData[SESSION_KEYS.DERIVED_KEY] &&
+      sessionData[SESSION_KEYS.SALT]
+    ) {
+      // Restore the derived key to the crypto manager
+      await cryptoManager.restoreKey(
+        sessionData[SESSION_KEYS.DERIVED_KEY],
+        sessionData[SESSION_KEYS.SALT]
+      )
+      return true
+    }
+    return false
+  } catch (error) {
+    console.error("Failed to restore crypto manager from session:", error)
+    return false
+  }
+}
 
 async function handleUnlock(password: string) {
   try {
     const storedSalt = (await chrome.storage.local.get("fabricWalletSalt"))
       .fabricWalletSalt
-
     if (!storedSalt) {
       throw new Error(
         "No salt found. Wallet might not be initialized correctly."
       )
     }
 
-    await cryptoManager.deriveKey(password, storedSalt)
+    const { key } = await cryptoManager.deriveKey(password, storedSalt)
 
     const verificationToken = (
       await chrome.storage.local.get("verificationToken")
@@ -38,7 +78,12 @@ async function handleUnlock(password: string) {
       throw new Error("Invalid password.")
     }
 
-    isWalletUnlocked = true
+    // Store unlock status and crypto key in session storage
+    await chrome.storage.session.set({
+      [SESSION_KEYS.WALLET_UNLOCKED]: true,
+      [SESSION_KEYS.DERIVED_KEY]: key, // Store the derived key
+      [SESSION_KEYS.SALT]: storedSalt
+    })
 
     return { success: true }
   } catch (error) {
@@ -47,19 +92,38 @@ async function handleUnlock(password: string) {
 }
 
 async function handleLock() {
-  isWalletUnlocked = false
+  // Clear session storage
+  await chrome.storage.session.clear()
+
+  // Clear crypto manager memory
+  cryptoManager.clearKey()
 
   return { success: true }
 }
 
-function getUnlockedStatus() {
-  return { isUnlocked: isWalletUnlocked }
+async function getUnlockedStatus() {
+  const isUnlocked = await getSessionUnlockStatus()
+
+  // If session says it's unlocked, ensure crypto manager is restored
+  if (isUnlocked) {
+    const restored = await restoreCryptoManagerFromSession()
+    if (!restored) {
+      // Session corrupted, clear it
+      await chrome.storage.session.clear()
+      return { isUnlocked: false }
+    }
+  }
+
+  return { isUnlocked }
 }
 
 async function handleCreateVault(password: string) {
   try {
     // Clear old salt and verification token
     await chrome.storage.local.remove(["fabricWalletSalt", "verificationToken"])
+
+    // Clear session storage
+    await chrome.storage.session.clear()
 
     // Remove existing wallets identities
     const existingLabels = await wallet.list()
@@ -68,12 +132,10 @@ async function handleCreateVault(password: string) {
 
     // Set new salt and derive new encryption key
     const { salt } = await cryptoManager.deriveKey(password)
-
     await chrome.storage.local.set({ fabricWalletSalt: salt })
 
     // Encrypt a new verification token
     const verificationToken = await cryptoManager.encrypt("LOCKED")
-
     await chrome.storage.local.set({ verificationToken })
 
     return { success: true }
@@ -84,28 +146,58 @@ async function handleCreateVault(password: string) {
 
 async function handleChangePassword(newPassword: string) {
   try {
+    //NB: this structure makes providing the current password unnecessary
+    //TODO: accept the current password as an arg and check that it is valid before going on with the password change
+    // Check if wallet is unlocked via session
+    const isUnlocked = await getSessionUnlockStatus()
+    if (!isUnlocked) {
+      throw new Error("Wallet is locked.")
+    }
+
+    // Restore crypto manager if needed
+    await restoreCryptoManagerFromSession()
+
+    // Step 1: Decrypt all identities with the OLD key
     const labels = await wallet.list()
     const identityPromises = labels.map((label) =>
       wallet.getPrivateIdentity(label)
     )
-
     const decryptedIdentities = (await Promise.all(identityPromises)).filter(
       (id): id is PrivateIdentity => id !== undefined
     )
 
-    const { salt: newSalt } = await cryptoManager.deriveKey(newPassword)
+    // Step 2: Create a NEW crypto manager with the new password
+    const newCryptoManager = new CryptoManager()
+    const { salt: newSalt, key: newKey } =
+      await newCryptoManager.deriveKey(newPassword)
 
-    // Re-encrypt and store all decrypted identities using the *new* key
+    // Step 3: Create a new wallet instance with the NEW crypto manager
+    const newWallet = new Wallet(newCryptoManager)
+
+    // Step 4: Re-encrypt and store all identities using the NEW wallet/key
     const reEncryptPromises = decryptedIdentities.map((identity) => {
-      wallet.put(identity)
+      return newWallet.put(identity)
     })
     await Promise.all(reEncryptPromises)
 
-    // Store the *new* salt
+    // Step 5: Store the new salt in local storage
     await chrome.storage.local.set({ fabricWalletSalt: newSalt })
 
-    // Unlock with the new password
-    await handleUnlock(newPassword)
+    // Step 6: Create new verification token with the new key
+    const verificationToken = await newCryptoManager.encrypt("LOCKED")
+    await chrome.storage.local.set({ verificationToken })
+
+    // Step 7: Update session with new key and switch to new crypto manager
+    await chrome.storage.session.set({
+      [SESSION_KEYS.WALLET_UNLOCKED]: true,
+      [SESSION_KEYS.DERIVED_KEY]: newKey,
+      [SESSION_KEYS.SALT]: newSalt
+    })
+
+    // Step 8: Replace the global crypto manager instance
+    cryptoManager.clearKey()
+    await cryptoManager.restoreKey(newKey, newSalt)
+
     return { success: true }
   } catch (error) {
     return { success: false, error: error.message }
@@ -130,6 +222,17 @@ async function emitEventToDapp({
   }
 }
 
+// Ensure wallet is ready for operations
+async function ensureWalletReady(): Promise<boolean> {
+  const isUnlocked = await getSessionUnlockStatus()
+  if (!isUnlocked) {
+    return false
+  }
+
+  // Restore crypto manager from session if needed
+  return await restoreCryptoManagerFromSession()
+}
+
 // --- Vault Lifecycle Management Listener ---
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
   switch (request.type) {
@@ -138,37 +241,39 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
       sendResponse(result)
       return true
     }
+
     case "LOCK_REQUEST": {
       const result = await handleLock()
       sendResponse(result)
       return true
     }
+
     case "GET_UNLOCKED_STATUS": {
-      sendResponse(getUnlockedStatus())
-      break
+      const result = await getUnlockedStatus()
+      sendResponse(result)
+      return true
     }
+
     case "HAS_VAULT_REQUEST": {
       const result = await chrome.storage.local.get("verificationToken")
       const hasVault = !!result.verificationToken
       sendResponse({ hasVault })
       break
     }
+
     case "CREATE_VAULT_REQUEST": {
       const result = await handleCreateVault(request.payload.password)
       sendResponse(result)
       return true
     }
-    case "CHANGE_PASSWORD_REQUEST": {
-      if (!isWalletUnlocked) {
-        sendResponse({ success: false, error: "Wallet is locked." })
-        return true
-      }
 
+    case "CHANGE_PASSWORD_REQUEST": {
       const { newPassword } = request.payload
       const result = await handleChangePassword(newPassword)
       sendResponse(result)
       return true
     }
+
     case "EVENT_REQUEST": {
       await emitEventToDapp({
         type: request.payload.event,
@@ -308,7 +413,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 
   const origin = sender.origin
 
-  if (isWalletUnlocked && wallet) {
+  if ((await ensureWalletReady()) && wallet) {
     switch (request.type) {
       case "ADD_IDENTITY_REQUEST":
         try {
