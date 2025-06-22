@@ -1,3 +1,5 @@
+import fabricVaultIconUrl from "url:../assets/icon.png"
+
 window.fabric = {
   request: (payload) => {
     return new Promise((resolve, reject) => {
@@ -57,6 +59,36 @@ window.fabric = {
   }
   //isFabricVault: true
 }
+
+// ** Fabric Provider Discovery Logic**
+
+const fabricProviderInfo: FabricProviderInfo = {
+  uuid: generateId(),
+  name: "Fabric Vault",
+  icon: fabricVaultIconUrl,
+  rdns: "dev.ifeanyiugwu.fabricvault"
+}
+
+// Announce the provider when it's ready
+function announceFabricProvider() {
+  const detail: FabricAnnounceProviderDetail = {
+    info: fabricProviderInfo,
+    provider: window.fabric
+  }
+  window.dispatchEvent(new CustomEvent("fabric:announceProvider", { detail }))
+}
+
+// Listen for requests from dapps to announce the provider
+window.addEventListener(
+  "fabric:requestProvider",
+  () => {
+    announceFabricProvider()
+  },
+  { once: true } // Only respond to the first request to avoid spamming, subsequent requests on a single page load might not be needed
+)
+
+// Announce provider immediately when it's injected
+announceFabricProvider()
 
 function generateId() {
   return `fab-${Date.now()}-${Math.random().toString(36).slice(2)}`
