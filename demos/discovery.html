@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FabricVault Discovery DApp</title>
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+        margin: 0;
+        padding: 20px;
+        background-color: #f0f2f5;
+        color: #333;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+      }
+      h1 {
+        color: #007bff;
+        margin-bottom: 30px;
+        font-size: 2.2em;
+        text-align: center;
+      }
+      .container {
+        background-color: #ffffff;
+        border: 1px solid #e0e0e0;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        max-width: 600px;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      h2 {
+        color: #343a40;
+        margin-top: 0;
+        margin-bottom: 20px;
+        border-bottom: 1px solid #f0f0f0;
+        padding-bottom: 10px;
+        font-size: 1.6em;
+      }
+      .provider-list {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
+      .provider-item {
+        display: flex;
+        align-items: center;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        padding: 15px;
+        border-radius: 8px;
+        transition:
+          transform 0.2s ease-in-out,
+          box-shadow 0.2s ease-in-out;
+      }
+      .provider-item:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+      }
+      .provider-item img {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        margin-right: 15px;
+        object-fit: contain;
+        flex-shrink: 0;
+      }
+      .provider-details {
+        flex-grow: 1;
+      }
+      .provider-details h3 {
+        margin: 0 0 5px 0;
+        color: #0056b3;
+        font-size: 1.2em;
+      }
+      .provider-details p {
+        margin: 0;
+        font-size: 0.9em;
+        color: #6c757d;
+      }
+      button.connect-btn {
+        background-color: #28a745; /* Green connect button */
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 1em;
+        transition:
+          background-color 0.2s ease,
+          transform 0.1s ease;
+        margin-left: auto; /* Push button to the right */
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      }
+      button.connect-btn:hover {
+        background-color: #218838;
+        transform: translateY(-1px);
+      }
+      button.connect-btn:active {
+        transform: translateY(0);
+      }
+      p.no-providers {
+        text-align: center;
+        color: #6c757d;
+        font-style: italic;
+        padding: 20px 0;
+      }
+
+      /* Custom Message Box */
+      #message-box {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #007bff;
+        color: white;
+        padding: 15px 25px;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        z-index: 2000;
+        opacity: 0;
+        visibility: hidden;
+        transition:
+          opacity 0.3s ease-in-out,
+          visibility 0.3s ease-in-out;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      #message-box.show {
+        opacity: 1;
+        visibility: visible;
+      }
+      #message-box.success {
+        background-color: #28a745;
+      }
+      #message-box.error {
+        background-color: #dc3545;
+      }
+      #message-box-close {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 1.2em;
+        cursor: pointer;
+        margin-left: 10px;
+      }
+
+      /* Responsive adjustments */
+      @media (max-width: 768px) {
+        body {
+          padding: 15px;
+        }
+        .container {
+          padding: 20px;
+        }
+        h1 {
+          font-size: 1.8em;
+          margin-bottom: 20px;
+        }
+        h2 {
+          font-size: 1.4em;
+        }
+        .provider-item {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 10px;
+        }
+        .provider-item img {
+          margin-bottom: 5px;
+          margin-right: 0;
+        }
+        button.connect-btn {
+          width: 100%;
+          margin-left: 0;
+          margin-top: 10px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>FabricVault Provider Discovery</h1>
+
+    <div class="container">
+      <h2>Discovered Fabric Vault Providers</h2>
+      <div id="fabricProviderList" class="provider-list">
+        <p class="no-providers">Searching for Fabric Vault providers...</p>
+      </div>
+    </div>
+
+    <div id="message-box">
+      <span id="message-box-content"></span>
+      <button id="message-box-close">&times;</button>
+    </div>
+
+    <script>
+      // --- DApp Logic ---
+
+      const fabricProviderListElement =
+        document.getElementById("fabricProviderList")
+      const messageBox = document.getElementById("message-box")
+      const messageBoxContent = document.getElementById("message-box-content")
+      const messageBoxCloseBtn = document.getElementById("message-box-close")
+
+      const discoveredFabricProviders = []
+
+      /**
+       * Displays a temporary message box for success or error.
+       * @param {string} message The message to display.
+       * @param {'success' | 'error' | 'info'} type The type of message.
+       */
+      function showMessageBox(message, type = "info") {
+        messageBoxContent.textContent = message
+        messageBox.className = `show ${type}` // Add type class for styling
+        messageBox.style.display = "flex" // Ensure it's visible
+
+        // Automatically hide after 3 seconds, or can be closed manually
+        setTimeout(() => {
+          hideMessageBox()
+        }, 3000)
+      }
+
+      function hideMessageBox() {
+        messageBox.classList.remove("show", "success", "error", "info")
+        messageBox.style.display = "none" // Hide it completely
+      }
+
+      messageBoxCloseBtn.addEventListener("click", hideMessageBox)
+
+      /**
+       * Handles the 'fabric:announceProvider' event and adds discovered providers.
+       * @param {FabricAnnounceProviderEvent} event The event object.
+       */
+      function handleFabricAnnounceProvider(event) {
+        const { info, provider } = event.detail
+        console.log(`Discovered Fabric Provider: ${info.name}`, info, provider)
+
+        // Check if the provider is already discovered (by UUID) to avoid duplicates
+        if (!discoveredFabricProviders.some((p) => p.info.uuid === info.uuid)) {
+          discoveredFabricProviders.push({ info, provider })
+          renderFabricProviderList() // Re-render the list with the new provider
+        }
+      }
+
+      /**
+       * Renders the list of discovered Fabric Vault providers in the UI.
+       */
+      function renderFabricProviderList() {
+        if (!fabricProviderListElement) return
+
+        fabricProviderListElement.innerHTML = "" // Clear previous list
+
+        if (discoveredFabricProviders.length === 0) {
+          fabricProviderListElement.innerHTML =
+            '<p class="no-providers">No Fabric Vault compatible providers found yet. Make sure your Fabric Vault extension is installed and active.</p>'
+          return
+        }
+
+        discoveredFabricProviders.forEach((p) => {
+          const providerItem = document.createElement("div")
+          providerItem.className = "provider-item"
+
+          const icon = document.createElement("img")
+          icon.src =
+            p.info.icon || "https://placehold.co/40x40/cccccc/333333?text=FV" // Fallback icon
+          icon.alt = `${p.info.name} Icon`
+
+          const detailsDiv = document.createElement("div")
+          detailsDiv.className = "provider-details"
+          detailsDiv.innerHTML = `
+            <h3>${p.info.name}</h3>
+            <p>ID: <code>${p.info.uuid.substring(0, 8)}...</code></p>
+            <p>RDNS: <code>${p.info.rdns}</code></p>
+          `
+
+          const connectButton = document.createElement("button")
+          connectButton.className = "connect-btn"
+          connectButton.textContent = `Connect`
+          connectButton.onclick = async () => {
+            try {
+              console.log(`Requesting identities from ${p.info.name}...`)
+              // Example: Requesting a Fabric-specific method, e.g., 'fabric_requestIdentities'
+              // This is a common first step after discovery to establish connection and get accounts
+              const identities = await p.provider.request({
+                method: "fabric_requestIdentities"
+              })
+              console.log(
+                `Connected to ${p.info.name}! Identities:`,
+                identities
+              )
+              showMessageBox(
+                `Connected to ${p.info.name}! Identities: ${JSON.stringify(identities.slice(0, 1)) + (identities.length > 1 ? "..." : "")}`,
+                "success"
+              )
+
+              // Now you can use 'p.provider' for further interactions specific to Fabric
+              // For example, listen to events from this specific provider
+              p.provider.on("identitiesChanged", (changedIdentities) => {
+                showMessageBox(
+                  `Identities changed in ${p.info.name}: ${JSON.stringify(changedIdentities.slice(0, 1)) + (changedIdentities.length > 1 ? "..." : "")}`,
+                  "info"
+                )
+                console.log(
+                  `Identities changed for ${p.info.name}:`,
+                  changedIdentities
+                )
+              })
+
+              // You can add other event listeners here as well
+              p.provider.on("connect", (connectInfo) => {
+                showMessageBox(
+                  `Connected to peer ${connectInfo.peerEndpoint} via ${p.info.name}`,
+                  "success"
+                )
+                console.log(`Connect event from ${p.info.name}:`, connectInfo)
+              })
+
+              p.provider.on("disconnect", (error) => {
+                showMessageBox(
+                  `Disconnected from ${p.info.name}: ${error.message}`,
+                  "error"
+                )
+                console.error(`Disconnect event from ${p.info.name}:`, error)
+              })
+            } catch (error) {
+              console.error(`Failed to connect to ${p.info.name}:`, error)
+              if (error instanceof Error) {
+                showMessageBox(
+                  `Connection failed with ${p.info.name}: ${error.message}`,
+                  "error"
+                )
+              } else {
+                showMessageBox(
+                  `Connection failed with ${p.info.name}: Unknown error.`,
+                  "error"
+                )
+              }
+            }
+          }
+
+          providerItem.appendChild(icon)
+          providerItem.appendChild(detailsDiv)
+          providerItem.appendChild(connectButton)
+          fabricProviderListElement.appendChild(providerItem)
+        })
+      }
+
+      // --- Initialization ---
+
+      // Listen for new Fabric provider announcements
+      window.addEventListener(
+        "fabric:announceProvider",
+        handleFabricAnnounceProvider
+      )
+
+      // Request existing Fabric providers to announce themselves (important for initial load)
+      // This will trigger any active Fabric Vault extensions to dispatch their 'fabric:announceProvider' event.
+      window.dispatchEvent(new CustomEvent("fabric:requestProvider"))
+
+      // Initial render call (will show "Searching..." or any already announced providers)
+      renderFabricProviderList()
+    </script>
+  </body>
+</html>
