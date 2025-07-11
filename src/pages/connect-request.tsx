@@ -141,9 +141,18 @@ export function ConnectRequest() {
             <div className="form-help mb-4">
               This will allow the application to:
               <ul className="mt-2" style={{ paddingLeft: "var(--space-4)" }}>
-                <li>View your active identity</li>
-                <li>Request transaction signatures</li>
-                <li>Interact with the Fabric network</li>
+                <li>
+                  View key identity details such as its label, certificate, and
+                  MSP ID
+                </li>
+                <li>
+                  Request your signature for transactions involving this
+                  identity
+                </li>
+                <li>
+                  With your approval, interact with the Fabric network using
+                  this identity
+                </li>
               </ul>
             </div>
 
