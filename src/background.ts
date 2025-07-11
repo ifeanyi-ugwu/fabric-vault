@@ -9,7 +9,7 @@ import type { Identity } from "~contexts/identity"
 import { handleVaultMessage } from "~handlers/vault"
 import { handleWalletMessage } from "~handlers/wallet"
 import type { SiteIdentityConnection } from "~hooks/use-identity-to-site-connection"
-import { emitEventToDapp } from "~services/connection"
+import { emitEventToDapp, getStoredConnections } from "~services/connection"
 import { handleSignRequest } from "~services/wallet"
 
 /**
@@ -611,22 +611,6 @@ async function openAuthorizationPopup(
   return new Promise((resolve, reject) => {
     pendingRequestResolvers.set(id, { resolve, reject })
   })
-}
-
-async function getStoredConnections(): Promise<
-  Map<string, SiteIdentityConnection[]>
-> {
-  try {
-    const result = await chrome.storage.local.get("fabricVaultConnections")
-    const storedConnections = result.fabricVaultConnections
-    if (storedConnections) {
-      return new Map(Object.entries(JSON.parse(storedConnections)))
-    }
-    return new Map()
-  } catch (error) {
-    //console.error("Error getting stored connections:", error)
-    return new Map()
-  }
 }
 
 async function handleIdentitiesRequest(port: chrome.runtime.Port) {
