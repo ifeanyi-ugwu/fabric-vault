@@ -3,11 +3,10 @@ import {
   pendingRequestResolvers,
   subscriptionToPortMap
 } from "~background/state"
+import { handleConnectionMessage } from "~handlers/connection"
 import { handlePortRequest } from "~handlers/port"
 import { handleVaultMessage } from "~handlers/vault"
 import { handleWalletMessage } from "~handlers/wallet"
-import type { SiteIdentityConnection } from "~hooks/use-identity-to-site-connection"
-import { emitEventToDapp, getStoredConnections } from "~services/connection"
 
 /**
  * Vault/Wallet session management using chrome.storage.session
@@ -24,100 +23,18 @@ const messageRouter = async (request: any, sender: any, sendResponse: any) => {
   const walletHandled = await handleWalletMessage(request, sender, sendResponse)
   if (walletHandled) return true
 
+  // Then try connection handlers
+  const connectionHandled = await handleConnectionMessage(
+    request,
+    sender,
+    sendResponse
+  )
+  if (connectionHandled) return true
+
   return false
 }
 
 chrome.runtime.onMessage.addListener(messageRouter)
-
-async function storeConnection(origin: string, labels: string[]) {
-  const storedConnections = await getStoredConnections()
-  const existingConnectionsForSite = storedConnections.get(origin) || []
-
-  const newConnections: SiteIdentityConnection[] = labels
-    .map((label) => ({ identityLabel: label, timestamp: Date.now() }))
-    .filter(
-      (newConnection) =>
-        !existingConnectionsForSite.some(
-          (existing) => existing.identityLabel === newConnection.identityLabel
-        )
-    )
-
-  storedConnections.set(origin, [
-    ...existingConnectionsForSite,
-    ...newConnections
-  ])
-  const connectionsObject = Object.fromEntries(storedConnections)
-  await chrome.storage.local.set({
-    fabricVaultConnections: JSON.stringify(connectionsObject)
-  })
-}
-
-// --- Listener for DApp connection responses ---
-chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
-  if (message.type === "APPROVE_CONNECTION_REQUEST") {
-    const { id, payload } = message
-    const { origin } = payload
-
-    const resolver = pendingRequestResolvers.get(id)
-
-    const identities = payload.identities.map((id) => ({
-      label: id.label,
-      mspId: id.mspId,
-      certificate: id.certificate
-    }))
-
-    if (resolver) {
-      resolver.resolve(identities)
-      pendingRequestResolvers.delete(id)
-      chrome.storage.local.remove(`pendingRequest_${id}`)
-
-      if (origin && Array.isArray(payload.identities)) {
-        storeConnection(
-          origin,
-          payload.identities.map((identity) => identity.label)
-        )
-      }
-
-      const peer = (await chrome.storage.local.get(["selectedPeer"]))
-        .selectedPeer
-
-      await emitEventToDapp({
-        type: "connect",
-        result: {
-          peerEndpoint: peer?.endpoint
-        }
-      })
-    }
-
-    sendResponse({ success: true })
-    return true
-  } else if (message.type === "REJECT_CONNECTION_REQUEST") {
-    const { id } = message
-    const resolver = pendingRequestResolvers.get(id)
-
-    if (resolver) {
-      resolver.reject(new Error("User rejected the connection request"))
-      pendingRequestResolvers.delete(id)
-      chrome.storage.local.remove(`pendingRequest_${id}`)
-    }
-
-    sendResponse({ success: true })
-    return true
-  } else if (message.type === "REJECT_SIGN_REQUEST") {
-    const { id } = message
-    const resolver = pendingRequestResolvers.get(id)
-
-    if (resolver) {
-      resolver.reject(new Error("User rejected the request"))
-      pendingRequestResolvers.delete(id)
-      chrome.storage.local.remove(`pendingRequest_${id}`)
-    }
-
-    sendResponse({ success: true })
-    return true
-  }
-  return false
-})
 
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name !== "fabric") return
