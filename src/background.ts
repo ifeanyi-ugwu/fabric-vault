@@ -1,9 +1,16 @@
+import {
+  activeSubscriptionWebSockets,
+  connections,
+  pendingRequestResolvers,
+  subscriptionToPortMap,
+  wallet
+} from "~background/state"
 import type { Identity } from "~contexts/identity"
-import type { Peer } from "~contexts/peer"
-import type { RequestData } from "~contexts/request"
+import { handleVaultMessage } from "~handlers/vault"
+import { handleWalletMessage } from "~handlers/wallet"
 import type { SiteIdentityConnection } from "~hooks/use-identity-to-site-connection"
-import { CryptoManager } from "~lib/crypto"
-import { Wallet, type PrivateIdentity } from "~lib/wallet"
+import { emitEventToDapp } from "~services/connection"
+import { handleSignRequest } from "~services/wallet"
 
 /**
  * Vault/Wallet session management using chrome.storage.session
@@ -11,535 +18,19 @@ import { Wallet, type PrivateIdentity } from "~lib/wallet"
  * *important: Vault/Wallet must be unlocked to perform any operation involving user identity
  */
 
-// ===============================
-// Session Storage Keys
-// ===============================
-const SESSION_KEYS = {
-  WALLET_UNLOCKED: "wallet_unlocked",
-  DERIVED_KEY: "derived_key",
-  SALT: "wallet_salt"
-} as const
+const messageRouter = async (request: any, sender: any, sendResponse: any) => {
+  // Try vault handlers first
+  const vaultHandled = await handleVaultMessage(request, sender, sendResponse)
+  if (vaultHandled) return true
 
-// ===============================
-// Vault Management
-// ===============================
-const cryptoManager = new CryptoManager()
-const wallet = new Wallet(cryptoManager)
+  // Then try wallet handlers
+  const walletHandled = await handleWalletMessage(request, sender, sendResponse)
+  if (walletHandled) return true
 
-async function getSessionUnlockStatus(): Promise<boolean> {
-  const result = await chrome.storage.session.get(SESSION_KEYS.WALLET_UNLOCKED)
-  return result[SESSION_KEYS.WALLET_UNLOCKED] === true
-}
-
-async function restoreCryptoManagerFromSession(): Promise<boolean> {
-  try {
-    const sessionData = await chrome.storage.session.get([
-      SESSION_KEYS.DERIVED_KEY,
-      SESSION_KEYS.SALT
-    ])
-
-    if (
-      sessionData[SESSION_KEYS.DERIVED_KEY] &&
-      sessionData[SESSION_KEYS.SALT]
-    ) {
-      // Restore the derived key to the crypto manager
-      await cryptoManager.restoreKey(
-        sessionData[SESSION_KEYS.DERIVED_KEY],
-        sessionData[SESSION_KEYS.SALT]
-      )
-      return true
-    }
-    return false
-  } catch (error) {
-    console.error("Failed to restore crypto manager from session:", error)
-    return false
-  }
-}
-
-async function handleUnlock(password: string) {
-  try {
-    const storedSalt = (await chrome.storage.local.get("fabricWalletSalt"))
-      .fabricWalletSalt
-    if (!storedSalt) {
-      throw new Error(
-        "No salt found. Wallet might not be initialized correctly."
-      )
-    }
-
-    const { key } = await cryptoManager.deriveKey(password, storedSalt)
-
-    const verificationToken = (
-      await chrome.storage.local.get("verificationToken")
-    ).verificationToken
-
-    try {
-      await cryptoManager.decrypt(verificationToken)
-    } catch {
-      throw new Error("Invalid password.")
-    }
-
-    // Store unlock status and crypto key in session storage
-    await chrome.storage.session.set({
-      [SESSION_KEYS.WALLET_UNLOCKED]: true,
-      [SESSION_KEYS.DERIVED_KEY]: key, // Store the derived key
-      [SESSION_KEYS.SALT]: storedSalt
-    })
-
-    return { success: true }
-  } catch (error) {
-    return { success: false, error: error.message }
-  }
-}
-
-async function handleLock() {
-  // Clear session storage
-  await chrome.storage.session.clear()
-
-  // Clear crypto manager memory
-  cryptoManager.clearKey()
-
-  return { success: true }
-}
-
-async function getUnlockedStatus() {
-  const isUnlocked = await getSessionUnlockStatus()
-
-  // If session says it's unlocked, ensure crypto manager is restored
-  if (isUnlocked) {
-    const restored = await restoreCryptoManagerFromSession()
-    if (!restored) {
-      // Session corrupted, clear it
-      await chrome.storage.session.clear()
-      return { isUnlocked: false }
-    }
-  }
-
-  return { isUnlocked }
-}
-
-async function handleCreateVault(password: string) {
-  try {
-    // Clear old salt and verification token
-    await chrome.storage.local.remove(["fabricWalletSalt", "verificationToken"])
-
-    // Clear session storage
-    await chrome.storage.session.clear()
-
-    // Remove existing wallets identities
-    const existingLabels = await wallet.list()
-    const removalPromises = existingLabels.map((label) => wallet.remove(label))
-    await Promise.all(removalPromises)
-
-    // Set new salt and derive new encryption key
-    const { salt } = await cryptoManager.deriveKey(password)
-    await chrome.storage.local.set({ fabricWalletSalt: salt })
-
-    // Encrypt a new verification token
-    const verificationToken = await cryptoManager.encrypt("LOCKED")
-    await chrome.storage.local.set({ verificationToken })
-
-    return { success: true }
-  } catch (error) {
-    return { success: false, error: error.message }
-  }
-}
-
-async function handleChangePassword(newPassword: string) {
-  try {
-    //NB: this structure makes providing the current password unnecessary
-    //TODO: accept the current password as an arg and check that it is valid before going on with the password change
-    // Check if wallet is unlocked via session
-    const isUnlocked = await getSessionUnlockStatus()
-    if (!isUnlocked) {
-      throw new Error("Wallet is locked.")
-    }
-
-    // Restore crypto manager if needed
-    await restoreCryptoManagerFromSession()
-
-    // Step 1: Decrypt all identities with the OLD key
-    const labels = await wallet.list()
-    const identityPromises = labels.map((label) =>
-      wallet.getPrivateIdentity(label)
-    )
-    const decryptedIdentities = (await Promise.all(identityPromises)).filter(
-      (id): id is PrivateIdentity => id !== undefined
-    )
-
-    // Step 2: Create a NEW crypto manager with the new password
-    const newCryptoManager = new CryptoManager()
-    const { salt: newSalt, key: newKey } =
-      await newCryptoManager.deriveKey(newPassword)
-
-    // Step 3: Create a new wallet instance with the NEW crypto manager
-    const newWallet = new Wallet(newCryptoManager)
-
-    // Step 4: Re-encrypt and store all identities using the NEW wallet/key
-    const reEncryptPromises = decryptedIdentities.map((identity) => {
-      return newWallet.put(identity)
-    })
-    await Promise.all(reEncryptPromises)
-
-    // Step 5: Store the new salt in local storage
-    await chrome.storage.local.set({ fabricWalletSalt: newSalt })
-
-    // Step 6: Create new verification token with the new key
-    const verificationToken = await newCryptoManager.encrypt("LOCKED")
-    await chrome.storage.local.set({ verificationToken })
-
-    // Step 7: Update session with new key and switch to new crypto manager
-    await chrome.storage.session.set({
-      [SESSION_KEYS.WALLET_UNLOCKED]: true,
-      [SESSION_KEYS.DERIVED_KEY]: newKey,
-      [SESSION_KEYS.SALT]: newSalt
-    })
-
-    // Step 8: Replace the global crypto manager instance
-    cryptoManager.clearKey()
-    await cryptoManager.restoreKey(newKey, newSalt)
-
-    return { success: true }
-  } catch (error) {
-    return { success: false, error: error.message }
-  }
-}
-
-async function emitEventToDapp({
-  type,
-  result
-}: {
-  type: string
-  result: any
-}) {
-  // Notify content scripts (and thus injected scripts) about the event
-  for (const port of connections.values()) {
-    port.postMessage({
-      type,
-      result,
-      kind: "event",
-      from: "background"
-    })
-  }
-}
-
-// Ensure wallet is ready for operations
-async function ensureWalletReady(): Promise<boolean> {
-  const isUnlocked = await getSessionUnlockStatus()
-  if (!isUnlocked) {
-    return false
-  }
-
-  // Restore crypto manager from session if needed
-  return await restoreCryptoManagerFromSession()
-}
-
-// --- Vault Lifecycle Management Listener ---
-chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
-  switch (request.type) {
-    case "UNLOCK_REQUEST": {
-      const result = await handleUnlock(request.payload.password)
-      sendResponse(result)
-      return true
-    }
-
-    case "LOCK_REQUEST": {
-      const result = await handleLock()
-      sendResponse(result)
-      return true
-    }
-
-    case "GET_UNLOCKED_STATUS": {
-      const result = await getUnlockedStatus()
-      sendResponse(result)
-      return true
-    }
-
-    case "HAS_VAULT_REQUEST": {
-      const result = await chrome.storage.local.get("verificationToken")
-      const hasVault = !!result.verificationToken
-      sendResponse({ hasVault })
-      break
-    }
-
-    case "CREATE_VAULT_REQUEST": {
-      const result = await handleCreateVault(request.payload.password)
-      sendResponse(result)
-      return true
-    }
-
-    case "CHANGE_PASSWORD_REQUEST": {
-      const { newPassword } = request.payload
-      const result = await handleChangePassword(newPassword)
-      sendResponse(result)
-      return true
-    }
-
-    case "EVENT_REQUEST": {
-      await emitEventToDapp({
-        type: request.payload.event,
-        result: request.payload.data || null
-      })
-      sendResponse({ success: true })
-      break
-    }
-    default:
-      return false
-  }
   return false
-})
-
-// ===============================
-// Wallet Operations
-// ===============================
-async function handleSignRequest(message, senderOrigin) {
-  const { digest, certificate } = message
-
-  if (!certificate) {
-    return { success: false, error: "Certificate not provided for signing." }
-  }
-  //this relied on label, find a way to do this check with only certificate
-  /*if (
-    !senderOrigin ||
-    !(await isConnectedToIdentity(senderOrigin, certificate))
-  ) {
-    return {
-      success: false,
-      error: "Site is not connected to the requested identity."
-    }
-  }*/
-
-  try {
-    const signature = await wallet.sign(digest, certificate)
-
-    return {
-      success: true,
-      signature
-    }
-  } catch (error) {
-    console.error("Error signing transaction:", error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    }
-  }
 }
 
-async function handleSendRequest(
-  peer: Peer,
-  identity: Identity,
-  request: RequestData
-) {
-  return new Promise((resolve, reject) => {
-    const ws = new WebSocket(peer.rpcUrl)
-    const requestId = Math.random().toString(36).substring(2)
-
-    ws.onopen = () => {
-      ws.send(
-        JSON.stringify({
-          jsonrpc: "2.0",
-          method: request.payload.method,
-          params: {
-            identity: {
-              mspId: identity.mspId,
-              certificate: identity.certificate
-            },
-            peer: {
-              name: peer.name,
-              endpoint: peer.endpoint,
-              tlsRootCert: peer.tlsRootCert
-            },
-            ...(request.payload.params || {})
-          },
-          id: requestId
-        })
-      )
-    }
-
-    ws.onerror = (err) => {
-      console.error("WebSocket error", err)
-      reject(new Error("WebSocket connection error"))
-      ws.close()
-    }
-
-    ws.onmessage = async (event) => {
-      const message = JSON.parse(event.data)
-      if (message.method === "signDigest" && message.params?.digest) {
-        const signResponse = await handleSignRequest(
-          {
-            digest: message.params.digest,
-            certificate: message.params.certificate
-          },
-          request.origin
-        )
-
-        if (signResponse.success) {
-          ws.send(
-            JSON.stringify({
-              jsonrpc: "2.0",
-              result: { signature: signResponse.signature },
-              id: message.id
-            })
-          )
-        } else {
-          ws.send(
-            JSON.stringify({
-              jsonrpc: "2.0",
-              error: {
-                code: -32001,
-                message: signResponse.error || "Signing failed"
-              },
-              id: message.id
-            })
-          )
-        }
-      } else if (message.result) {
-        resolve(message.result)
-        ws.close()
-      } else if (message.error) {
-        reject(new Error(message.error.message))
-        ws.close()
-      }
-    }
-  })
-}
-
-// --- Wallet/IdentityProvider Operations Listener ---
-chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
-  async function isConnected(origin: string | undefined): Promise<boolean> {
-    if (!origin) return false
-    const storedConnections = await getStoredConnections()
-    return storedConnections.has(origin)
-  }
-
-  const origin = sender.origin
-
-  if ((await ensureWalletReady()) && wallet) {
-    switch (request.type) {
-      case "ADD_IDENTITY_REQUEST":
-        try {
-          await wallet.put(request.payload.identity)
-          sendResponse({ success: true })
-        } catch (error) {
-          sendResponse({ success: false, error: error.message })
-        }
-        return true
-      case "REMOVE_IDENTITY_REQUEST":
-        try {
-          await wallet.remove(request.payload.label)
-          sendResponse({ success: true })
-        } catch (error) {
-          sendResponse({ success: false, error: error.message })
-        }
-        return true
-      case "GET_IDENTITIES_REQUEST":
-        try {
-          const labels = await wallet.list()
-          const identityPromises = labels.map((label) => wallet.get(label))
-          const fullIdentities = await Promise.all(identityPromises)
-          const publicIdentities: Identity[] = fullIdentities
-            //.filter(Boolean)
-            .filter((identity): identity is Identity => Boolean(identity))
-            .map((identity) => ({
-              label: identity.label,
-              mspId: identity.mspId,
-              certificate: identity.certificate
-            }))
-          sendResponse({ success: true, identities: publicIdentities })
-        } catch (error) {
-          sendResponse({ success: false, error: error.message })
-        }
-        return true
-      /*case "SIGN_REQUEST": {
-        if (!isWalletUnlocked) {
-          sendResponse({ success: false, error: "Wallet is locked." })
-          return true
-        }
-        if (!(await isConnected(origin))) {
-          sendResponse({ success: false, error: "Site is not connected." })
-          return true
-        }
-        const result = await handleSignRequest(request.payload, origin)
-        sendResponse(result)
-        return true
-      }*/
-      case "SEND_TRANSACTION_REQUEST":
-        // Call sendResponse immediately to acknowledge the request
-        // and allow the frontend to close the popup.
-        // or i can just not await the message request in the popup
-        sendResponse({
-          success: true,
-          message: "Transaction initiation requested."
-        })
-
-        try {
-          const { peer, identity, request: req } = request.payload
-
-          const resolver = pendingRequestResolvers.get(req.id)
-          if (!resolver) {
-            console.error(`No resolver found for pending request ID: ${req.id}`)
-          }
-          const result = await handleSendRequest(peer, identity, req)
-            .then((result) => {
-              console.log(
-                "Transaction completed successfully in background:",
-                result
-              )
-              // Resolve the original promise that the DApp is awaiting
-              resolver?.resolve(result)
-            })
-            .catch((error) => {
-              console.error("Transaction failed in background:", error)
-              // Reject the original promise that the DApp is awaiting
-              resolver?.reject(error)
-            })
-            .finally(() => {
-              // Clean up the pending request resolver and storage after the promise settles
-              if (pendingRequestResolvers.has(request.id)) {
-                pendingRequestResolvers.delete(request.id)
-                chrome.storage.local.remove(`pendingRequest_${request.id}`)
-              }
-            })
-          //sendResponse({ success: true, result })
-        } catch (error) {
-          console.error("Error sending transaction:", error)
-          sendResponse({
-            success: false,
-            error: error instanceof Error ? error.message : String(error)
-          })
-        }
-        return true
-      // ... other wallet-related requests
-      default:
-        return false
-    }
-  } else if (
-    request.type === "ADD_IDENTITY_REQUEST" ||
-    request.type === "REMOVE_IDENTITY_REQUEST" ||
-    request.type === "GET_IDENTITIES_REQUEST"
-  ) {
-    sendResponse({ success: false, error: "Wallet is locked." })
-    return true
-  }
-  return false
-})
-
-const pendingRequestResolvers = new Map<
-  string,
-  { resolve: Function; reject: Function }
->()
-
-// Map to hold active WebSocket connections for subscription purposes.
-// Key: Peer RPC URL (or a combination of peer and identity if specific to that identity)
-// Value: The WebSocket instance
-const activeSubscriptionWebSockets = new Map<string, WebSocket>()
-
-// Map to track which subscription IDs belong to which dApp port/origin
-// Key: subscriptionId (from the backend)
-// Value: { port: chrome.runtime.Port, origin: string }
-const subscriptionToPortMap = new Map<
-  string,
-  { port: chrome.runtime.Port; origin: string }
->()
+chrome.runtime.onMessage.addListener(messageRouter)
 
 async function storeConnection(origin: string, labels: string[]) {
   const storedConnections = await getStoredConnections()
@@ -630,9 +121,6 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
   }
   return false
 })
-
-// Track active connections
-const connections = new Map<string, chrome.runtime.Port>()
 
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name !== "fabric") return
@@ -922,11 +410,11 @@ async function handleRequest(message: any, port: chrome.runtime.Port) {
                 digest: message.params.digest,
                 certificate: message.params.certificate
               },
-              origin // Pass the dApp origin from the subscription request, if relevant. Or the peer's origin.
+              origin! // Pass the dApp origin from the subscription request, if relevant. Or the peer's origin.
             )
 
             if (signResponse.success) {
-              ws.send(
+              ws?.send(
                 JSON.stringify({
                   jsonrpc: "2.0",
                   result: { signature: signResponse.signature },
@@ -934,7 +422,7 @@ async function handleRequest(message: any, port: chrome.runtime.Port) {
                 })
               )
             } else {
-              ws.send(
+              ws?.send(
                 JSON.stringify({
                   jsonrpc: "2.0",
                   error: {
@@ -996,17 +484,17 @@ async function handleRequest(message: any, port: chrome.runtime.Port) {
       if (ws.readyState === WebSocket.CONNECTING) {
         await new Promise<void>((resolve, reject) => {
           const openHandler = () => {
-            ws!.removeEventListener("open", openHandler)
-            ws!.removeEventListener("error", errorHandler)
+            ws.removeEventListener("open", openHandler)
+            ws.removeEventListener("error", errorHandler)
             resolve()
           }
           const errorHandler = (event) => {
-            ws!.removeEventListener("open", openHandler)
-            ws!.removeEventListener("error", errorHandler)
+            ws.removeEventListener("open", openHandler)
+            ws.removeEventListener("error", errorHandler)
             reject(new Error("WebSocket connection failed."))
           }
-          ws!.addEventListener("open", openHandler)
-          ws!.addEventListener("error", errorHandler)
+          ws.addEventListener("open", openHandler)
+          ws.addEventListener("error", errorHandler)
         })
       }
       if (ws.readyState !== WebSocket.OPEN) {
@@ -1028,7 +516,7 @@ async function handleRequest(message: any, port: chrome.runtime.Port) {
           if (response.id === requestId) {
             //clearTimeout(timeout)
             clearTimeout(timeoutId)
-            ws!.removeEventListener("message", handleResponse)
+            ws.removeEventListener("message", handleResponse)
             if (response.error) {
               reject(
                 new Error(response.error.message || `Error during ${method}`)
@@ -1061,13 +549,13 @@ async function handleRequest(message: any, port: chrome.runtime.Port) {
         // Set the timeout *after* adding the listener, so handleResponse can clear it
         timeoutId = setTimeout(() => {
           // This block will only execute if handleResponse hasn't been called yet for this requestId
-          ws!.removeEventListener("message", handleResponse) // Clean up the listener
+          ws.removeEventListener("message", handleResponse) // Clean up the listener
           reject(new Error(`${method} request timed out.`)) // Reject the promise
         }, 30000) // 30-second timeout
 
-        ws!.addEventListener("message", handleResponse)
+        ws.addEventListener("message", handleResponse)
 
-        ws!.send(
+        ws.send(
           JSON.stringify({
             jsonrpc: "2.0",
             method: method, // "fabric_subscribe" or "fabric_unsubscribe"
