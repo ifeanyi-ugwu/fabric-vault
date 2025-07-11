@@ -65,6 +65,8 @@ export function ConnectRequest() {
 
   const handleApprove = async () => {
     try {
+      if (!selectedIdentity) return
+
       setIsSubmitting(true)
       await chrome.runtime.sendMessage({
         type: "APPROVE_CONNECTION_REQUEST",
@@ -126,6 +128,16 @@ export function ConnectRequest() {
               </div>
             )}
 
+            {!selectedIdentity && (
+              <div className="form-help mb-4 text-danger text-bold text-center">
+                🤔 You haven't selected an identity yet.
+                <br />
+                If you haven't added one, you'll need to do that first.
+                <br />
+                Head to your dashboard to add or pick the one you'd like to use.
+              </div>
+            )}
+
             <div className="form-help mb-4">
               This will allow the application to:
               <ul className="mt-2" style={{ paddingLeft: "var(--space-4)" }}>
@@ -136,18 +148,28 @@ export function ConnectRequest() {
             </div>
 
             <div className="form-actions">
-              <button
-                className="button button-outline"
-                onClick={handleReject}
-                disabled={isSubmitting}>
-                Reject
-              </button>
-              <button
-                className="button button-primary"
-                onClick={handleApprove}
-                disabled={isSubmitting}>
-                Connect
-              </button>
+              {!selectedIdentity ? (
+                <button
+                  className="button button-secondary full-width"
+                  onClick={handleReject}>
+                  Close
+                </button>
+              ) : (
+                <>
+                  <button
+                    className="button button-outline"
+                    onClick={handleReject}
+                    disabled={isSubmitting}>
+                    Reject
+                  </button>
+                  <button
+                    className="button button-primary"
+                    onClick={handleApprove}
+                    disabled={isSubmitting}>
+                    Connect
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
