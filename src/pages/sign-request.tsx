@@ -71,12 +71,11 @@ export function SignRequest() {
     if (sending) return
     setSending(true)
     try {
-      if (!selectedPeer) {
-        throw new Error("Peer is undefined")
-      }
-
-      if (!selectedIdentity) {
-        throw new Error("Identity is undefined")
+      if (!selectedPeer || !selectedIdentity) {
+        setError(
+          "You must select both an identity and a peer before approving the transaction."
+        )
+        return
       }
 
       console.log({ payload: request.payload })
@@ -136,6 +135,27 @@ export function SignRequest() {
             your signature.
           </div>
 
+          {!selectedIdentity && (
+            <div className="form-help mb-4 text-danger text-bold text-center">
+              🤔 You haven't selected an identity yet.
+              <br />
+              If you haven't added one, you'll need to do that first.
+              <br />
+              Head to your dashboard to add or pick the one you'd like to use.
+            </div>
+          )}
+
+          {!selectedPeer && (
+            <div className="form-help mb-4 text-warning text-bold text-center">
+              📡 You haven't selected a peer yet.
+              <br />
+              If you haven't added one, that's your first step.
+              <br />
+              Head to your dashboard to add or pick the peer you'd like to
+              connect to.
+            </div>
+          )}
+
           <div className="form-group">
             <label>Transaction Details</label>
             <div className="recovery-phrase-container">
@@ -156,7 +176,9 @@ export function SignRequest() {
             <Button variant="outline" onClick={handleReject}>
               Reject
             </Button>
-            <Button onClick={handleApprove} disabled={sending}>
+            <Button
+              onClick={handleApprove}
+              disabled={sending || !selectedIdentity || !selectedPeer}>
               {sending ? "Approving..." : "Approve"}
             </Button>
           </div>
