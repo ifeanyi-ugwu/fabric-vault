@@ -42,12 +42,10 @@ async function determineAndValidateIdentity({
     certificate?: string
   } = {}
 
-  // --- 1. Determine the *intended* identity for the transaction/action. i.e identifying *which* identity the dApp wants to use.
+  // 1. Determine the intended identity for the transaction/action
   if (identity) {
-    // If dApp provided an identity (e.g., via `params.identity.certificate`),
     identityToUseForConnection.mspId = identity.mspId
     identityToUseForConnection.certificate = identity.certificate
-
     if (identity.certificate) {
       identityToUseForConnection.label = await wallet.getLabelByCertificate(
         identity.certificate
@@ -58,14 +56,11 @@ async function determineAndValidateIdentity({
       )
     } else if (identity.label) {
       // Fallback if certificate not provided but label is (less reliable as label isn't unique enough for security usually) originally meant for display
-      identityToUseForConnection.mspId = identity.mspId.label = identity.label
-      console.log(
-        "Using label from message:",
-        (identityToUseForConnection.mspId = identity.mspId.label)
-      )
+      identityToUseForConnection.label = identity.label
+      console.log("Using label from message:", identity.label)
     }
   } else {
-    // If no identity explicitly provided by dApp, use the currently active one.
+    // If no identity explicitly provided by dApp, use the currently active one
     const activeIdentityPublicInfo = (
       await chrome.storage.local.get("selectedIdentity")
     ).selectedIdentity
@@ -77,7 +72,7 @@ async function determineAndValidateIdentity({
     }
   }
 
-  // --- 2. CRITICAL: Check if there's *any* identity identified to use.
+  // 2. Check if there's any identity identified to use
   if (
     !identityToUseForConnection.label &&
     !identityToUseForConnection.certificate
@@ -87,7 +82,7 @@ async function determineAndValidateIdentity({
     )
   }
 
-  // --- 3. CRITICAL: Validate if the site is *connected* to this intended identity.
+  // 3. Validate if the site is connected to this intended identity
   if (
     !(await isConnectedToIdentity(origin, identityToUseForConnection.label))
   ) {
@@ -106,14 +101,6 @@ async function determineAndValidateIdentity({
   return identityToUseForConnection
 }
 
-/**
- * Opens a popup to request user authorization for a dapp action (e.g., signing, connecting).
- *
- * @param port The connection port used to communicate with the DApp.
- * @param message The request message from the DApp.  The message *must* have an 'id' property.
- * @param type The type of authorization request (e.g., 'sign', 'connect').  This is used in the ui flow.
- * @returns A promise that resolves with the user's response (e.g., the signature, the selected identities) or rejects if the user cancels.
- */
 async function openAuthorizationPopup(
   port: chrome.runtime.Port,
   message: any,
@@ -121,7 +108,6 @@ async function openAuthorizationPopup(
 ): Promise<any> {
   const { id } = message
   const origin = port.sender?.origin
-
   if (!origin) {
     throw new Error("Could not determine the origin of the request.")
   }
@@ -145,10 +131,7 @@ async function openAuthorizationPopup(
 
 async function handleIdentitiesRequest(port: chrome.runtime.Port) {
   const origin = port.sender?.origin
-
   if (!origin) {
-    // This case should ideally be handled earlier or indicate a malformed request
-    // ideally a port should have an origin
     throw new Error("Could not determine the origin of the request.")
   }
 
@@ -166,7 +149,6 @@ async function handleIdentitiesRequest(port: chrome.runtime.Port) {
     const connection = connectedIdentities.find(
       (conn) => conn.identityLabel === identityLabel
     )
-
     if (connection) {
       const identity = await wallet.get(identityLabel)
       if (identity) {
@@ -182,21 +164,18 @@ async function handleIdentitiesRequest(port: chrome.runtime.Port) {
   return authorizedIdentities
 }
 
-// ===============================
-// Request Handlers
-// ===============================
-export async function handlePortRequest(
-  message: any,
-  port: chrome.runtime.Port
-) {
+// Main request handler for port messages
+async function handlePortRequest(message: any, port: chrome.runtime.Port) {
   const { method } = message
   const origin = port.sender?.origin
 
   switch (method) {
     case "fabric_requestIdentities":
       return await openAuthorizationPopup(port, message, "connect")
+
     case "fabric_identities":
       return await handleIdentitiesRequest(port)
+
     case "fabric_evaluateTransaction":
     case "fabric_submitTransaction":
     case "fabric_submitAsync":
@@ -204,7 +183,6 @@ export async function handlePortRequest(
         identity: message.params.identity,
         origin
       })
-
       return await openAuthorizationPopup(
         port,
         {
@@ -216,250 +194,250 @@ export async function handlePortRequest(
         },
         "sign"
       )
+
     case "fabric_subscribe":
     case "fabric_unsubscribe":
-      const identityForSubscription = await determineAndValidateIdentity({
-        identity: message.params.identity,
-        origin
-      })
+      return await handleSubscriptionRequest(message, port, origin!)
 
-      const selectedPeer = (await chrome.storage.local.get("selectedPeer"))
-        .selectedPeer
-
-      if (!selectedPeer || !selectedPeer.rpcUrl) {
-        throw new Error(
-          "No peer selected or peer RPC URL missing for subscription."
-        )
-      }
-
-      // Get or create WebSocket connection for this peer
-      let ws = activeSubscriptionWebSockets.get(selectedPeer.rpcUrl)
-      if (!ws || ws.readyState !== WebSocket.OPEN) {
-        ws = new WebSocket(selectedPeer.rpcUrl)
-        activeSubscriptionWebSockets.set(selectedPeer.rpcUrl, ws)
-
-        // Handle WebSocket events for this new connection
-        ws.onopen = () => {
-          console.log(
-            `WebSocket for subscriptions connected to ${selectedPeer.rpcUrl}`
-          )
-          // If there are pending subscriptions that were waiting, send them now.
-          // (This is a more advanced topic for later, but keep in mind)
-        }
-        ws.onerror = (event) => {
-          console.error(
-            `WebSocket for subscriptions error on ${selectedPeer.rpcUrl}:`,
-            event
-          )
-          activeSubscriptionWebSockets.delete(selectedPeer.rpcUrl) // Clean up
-          // You might want to notify dApps about connection issues
-        }
-        ws.onclose = (event) => {
-          console.log(
-            `WebSocket for subscriptions closed on ${selectedPeer.rpcUrl}:`,
-            event
-          )
-          activeSubscriptionWebSockets.delete(selectedPeer.rpcUrl) // Clean up
-          // Remove all subscriptions associated with this closed WS
-          subscriptionToPortMap.forEach((value, subId) => {
-            if (value.origin === origin) {
-              // Assuming one WS per origin for simplicity
-              subscriptionToPortMap.delete(subId)
-            }
-          })
-        }
-
-        ws.onmessage = async (event) => {
-          const notification = JSON.parse(event.data)
-          const message = notification
-
-          // --- NEW: Handle signDigest requests from the server via this WS ---
-          if (message.method === "signDigest" && message.params?.digest) {
-            const signResponse = await handleSignRequest(
-              {
-                digest: message.params.digest,
-                certificate: message.params.certificate
-              },
-              origin! // Pass the dApp origin from the subscription request, if relevant. Or the peer's origin.
-            )
-
-            if (signResponse.success) {
-              ws?.send(
-                JSON.stringify({
-                  jsonrpc: "2.0",
-                  result: { signature: signResponse.signature },
-                  id: message.id
-                })
-              )
-            } else {
-              ws?.send(
-                JSON.stringify({
-                  jsonrpc: "2.0",
-                  error: {
-                    code: -32001,
-                    message: signResponse.error || "Signing failed"
-                  },
-                  id: message.id
-                })
-              )
-            }
-          }
-          // --- END NEW signDigest handling ---
-
-          // Expected format: { method: "fabric_subscription", params: { subscription: string, result: unknown } }
-          else if (
-            notification.method === "fabric_subscription" &&
-            notification.params?.subscription
-          ) {
-            const subscriptionId = notification.params.subscription
-            const target = subscriptionToPortMap.get(subscriptionId)
-
-            if (target) {
-              // Emit the event to the specific dApp that subscribed
-              // Using chrome.tabs.sendMessage for targeted emission
-              chrome.tabs.sendMessage(
-                target.port.sender?.tab?.id!, // Assuming tab.id is available
-                {
-                  type: "fabric_subscription",
-                  result: notification.params, // contains subscriptionId and result
-                  kind: "event",
-                  from: "background"
-                },
-                (response) => {
-                  if (chrome.runtime.lastError) {
-                    console.warn(
-                      `Could not send subscription event to tab ${target.port.sender?.tab?.id}:`,
-                      chrome.runtime.lastError.message
-                    )
-                    // If the tab is gone, remove the subscription
-                    //subscriptionToPortMap.delete(subscriptionId)
-                  }
-                }
-              )
-            } else {
-              console.warn(
-                `Received subscription notification for unknown ID: ${subscriptionId}`
-              )
-              // You might want to send an unsubscribe message back to the server
-              // for unknown IDs if you don't track them correctly.
-            }
-          } else {
-            // Handle other potential messages from the WebSocket if any (e.g., responses to subscribe calls)
-            console.log("Unhandled WebSocket message:", notification)
-          }
-        }
-      }
-
-      // Wait for the WebSocket to open if it's not already
-      if (ws.readyState === WebSocket.CONNECTING) {
-        await new Promise<void>((resolve, reject) => {
-          const openHandler = () => {
-            ws.removeEventListener("open", openHandler)
-            ws.removeEventListener("error", errorHandler)
-            resolve()
-          }
-          const errorHandler = (event) => {
-            ws.removeEventListener("open", openHandler)
-            ws.removeEventListener("error", errorHandler)
-            reject(new Error("WebSocket connection failed."))
-          }
-          ws.addEventListener("open", openHandler)
-          ws.addEventListener("error", errorHandler)
-        })
-      }
-      if (ws.readyState !== WebSocket.OPEN) {
-        throw new Error("WebSocket is not open for subscription.")
-      }
-
-      const requestId = Math.random().toString(36).substring(2) // Generate a unique request ID for the WS message
-
-      // Now send the subscribe/unsubscribe message
-      return new Promise((resolve, reject) => {
-        /*const timeout = setTimeout(() => {
-            reject(new Error(`${method} request timed out.`))
-            ws!.removeEventListener("message", handleResponse)
-          }, 30000) // 30-second timeout*/
-        let timeoutId
-
-        const handleResponse = (event) => {
-          const response = JSON.parse(event.data)
-          if (response.id === requestId) {
-            //clearTimeout(timeout)
-            clearTimeout(timeoutId)
-            ws.removeEventListener("message", handleResponse)
-            if (response.error) {
-              reject(
-                new Error(response.error.message || `Error during ${method}`)
-              )
-            } else {
-              const subscriptionId = response.result // Assuming the server returns subscriptionId on successful subscribe
-
-              if (method === "fabric_subscribe" && subscriptionId) {
-                // Map the new subscription ID to the requesting dApp's port/origin
-                subscriptionToPortMap.set(subscriptionId, {
-                  port,
-                  origin: origin!
-                })
-                resolve(subscriptionId) // Return the subscription ID to the dApp
-              } else if (method === "fabric_unsubscribe") {
-                // Remove the subscription from our map
-                const targetSubscriptionId = message.params?.subscriptionId // Assuming unsubscribe takes subscriptionId
-                if (targetSubscriptionId) {
-                  subscriptionToPortMap.delete(targetSubscriptionId)
-                }
-                resolve({ success: true })
-              } else {
-                // Generic success response if no specific subscriptionId is expected/found
-                resolve(response.result)
-              }
-            }
-          }
-        }
-
-        // Set the timeout *after* adding the listener, so handleResponse can clear it
-        timeoutId = setTimeout(() => {
-          // This block will only execute if handleResponse hasn't been called yet for this requestId
-          ws.removeEventListener("message", handleResponse) // Clean up the listener
-          reject(new Error(`${method} request timed out.`)) // Reject the promise
-        }, 30000) // 30-second timeout
-
-        ws.addEventListener("message", handleResponse)
-
-        ws.send(
-          JSON.stringify({
-            jsonrpc: "2.0",
-            method: method, // "fabric_subscribe" or "fabric_unsubscribe"
-            params: {
-              peer: selectedPeer,
-              ...(message.params || {}),
-              identity: {
-                mspId: identityForSubscription.mspId,
-                certificate: identityForSubscription.certificate
-              }
-            },
-            id: requestId
-          })
-        )
-      })
     default:
       throw new Error(`Unknown method: ${method}`)
   }
 }
 
+async function handleSubscriptionRequest(
+  message: any,
+  port: chrome.runtime.Port,
+  origin: string
+) {
+  const { method } = message
+
+  const identityForSubscription = await determineAndValidateIdentity({
+    identity: message.params.identity,
+    origin
+  })
+
+  const selectedPeer = (await chrome.storage.local.get("selectedPeer"))
+    .selectedPeer
+  if (!selectedPeer || !selectedPeer.rpcUrl) {
+    throw new Error(
+      "No peer selected or peer RPC URL missing for subscription."
+    )
+  }
+
+  // Get or create WebSocket connection for this peer
+  let ws = activeSubscriptionWebSockets.get(selectedPeer.rpcUrl)
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    ws = await createWebSocketConnection(selectedPeer.rpcUrl, origin)
+  }
+
+  // Wait for the WebSocket to open if it's not already
+  if (ws.readyState === WebSocket.CONNECTING) {
+    await waitForWebSocketOpen(ws)
+  }
+
+  if (ws.readyState !== WebSocket.OPEN) {
+    throw new Error("WebSocket is not open for subscription.")
+  }
+
+  const requestId = Math.random().toString(36).substring(2)
+
+  return new Promise((resolve, reject) => {
+    let timeoutId
+    const handleResponse = (event) => {
+      const response = JSON.parse(event.data)
+      if (response.id === requestId) {
+        clearTimeout(timeoutId)
+        ws.removeEventListener("message", handleResponse)
+
+        if (response.error) {
+          reject(new Error(response.error.message || `Error during ${method}`))
+        } else {
+          const subscriptionId = response.result
+          if (method === "fabric_subscribe" && subscriptionId) {
+            // Map the new subscription ID to the requesting dApp's port/origin
+            subscriptionToPortMap.set(subscriptionId, {
+              port,
+              origin: origin!
+            })
+            resolve(subscriptionId) // Return the subscription ID to the dApp
+          } else if (method === "fabric_unsubscribe") {
+            const targetSubscriptionId = message.params?.subscriptionId
+            if (targetSubscriptionId) {
+              subscriptionToPortMap.delete(targetSubscriptionId)
+            }
+            resolve({ success: true })
+          } else {
+            // this ideally will not be reached
+            resolve(response.result)
+          }
+        }
+      }
+    }
+
+    // Set the timeout *after* adding the listener, so handleResponse can clear it
+    timeoutId = setTimeout(() => {
+      // This block will only execute if handleResponse hasn't been called yet for this requestId
+      ws.removeEventListener("message", handleResponse)
+      reject(new Error(`${method} request timed out.`))
+    }, 30000)
+
+    ws.addEventListener("message", handleResponse)
+    ws.send(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        method: method,
+        params: {
+          peer: selectedPeer,
+          ...(message.params || {}),
+          identity: {
+            mspId: identityForSubscription.mspId,
+            certificate: identityForSubscription.certificate
+          }
+        },
+        id: requestId
+      })
+    )
+  })
+}
+
+async function createWebSocketConnection(
+  rpcUrl: string,
+  origin: string
+): Promise<WebSocket> {
+  const ws = new WebSocket(rpcUrl)
+  activeSubscriptionWebSockets.set(rpcUrl, ws)
+
+  ws.onopen = () => {
+    console.log(`WebSocket for subscriptions connected to ${rpcUrl}`)
+  }
+
+  ws.onerror = (event) => {
+    console.error(`WebSocket for subscriptions error on ${rpcUrl}:`, event)
+    activeSubscriptionWebSockets.delete(rpcUrl)
+  }
+
+  ws.onclose = (event) => {
+    console.log(`WebSocket for subscriptions closed on ${rpcUrl}:`, event)
+    activeSubscriptionWebSockets.delete(rpcUrl)
+    // Remove all subscriptions associated with this closed WS
+    subscriptionToPortMap.forEach((value, subId) => {
+      if (value.origin === origin) {
+        // Assuming one WS per origin
+        subscriptionToPortMap.delete(subId)
+      }
+    })
+  }
+
+  ws.onmessage = async (event) => {
+    const notification = JSON.parse(event.data)
+    const message = notification
+
+    // Handle signDigest requests from the server via this WS
+    if (message.method === "signDigest" && message.params?.digest) {
+      const signResponse = await handleSignRequest(
+        {
+          digest: message.params.digest,
+          certificate: message.params.certificate
+        },
+        origin
+      )
+
+      if (signResponse.success) {
+        ws?.send(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            result: { signature: signResponse.signature },
+            id: message.id
+          })
+        )
+      } else {
+        ws?.send(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            error: {
+              code: -32001,
+              message: signResponse.error || "Signing failed"
+            },
+            id: message.id
+          })
+        )
+      }
+    }
+    // Handle subscription notifications
+    else if (
+      notification.method === "fabric_subscription" &&
+      notification.params?.subscription
+    ) {
+      const subscriptionId = notification.params.subscription
+      const target = subscriptionToPortMap.get(subscriptionId)
+
+      if (target) {
+        // Emit the event to the specific dApp that subscribed
+        chrome.tabs.sendMessage(
+          target.port.sender?.tab?.id!,
+          {
+            type: "fabric_subscription",
+            result: notification.params,
+            kind: "event",
+            from: "background"
+          },
+          (response) => {
+            if (chrome.runtime.lastError) {
+              console.warn(
+                `Could not send subscription event to tab ${target.port.sender?.tab?.id}:`,
+                chrome.runtime.lastError.message
+              )
+              // If the tab is gone, remove the subscription
+              //subscriptionToPortMap.delete(subscriptionId)
+            }
+          }
+        )
+      } else {
+        console.warn(
+          `Received subscription notification for unknown ID: ${subscriptionId}`
+        )
+        // You might want to send an unsubscribe message back to the server
+        // for unknown IDs if you don't track them correctly.
+        // but this block, ideally, will not be reachable
+      }
+    } else {
+      console.log("Unhandled WebSocket message:", notification)
+    }
+  }
+
+  return ws
+}
+
+async function waitForWebSocketOpen(ws: WebSocket): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const openHandler = () => {
+      ws.removeEventListener("open", openHandler)
+      ws.removeEventListener("error", errorHandler)
+      resolve()
+    }
+    const errorHandler = (event) => {
+      ws.removeEventListener("open", openHandler)
+      ws.removeEventListener("error", errorHandler)
+      reject(new Error("WebSocket connection failed."))
+    }
+    ws.addEventListener("open", openHandler)
+    ws.addEventListener("error", errorHandler)
+  })
+}
+
+// Main port connection handler
 export const handlePortConnection = (port: chrome.runtime.Port) => {
   if (port.name !== "fabric") return
 
   const portRequestIds = new Set<string>()
-
-  // Store the connection with a unique ID
   const tabId = port.sender?.tab?.id
+
   if (tabId) {
     connections.set(`${tabId}:${port.name}`, port)
   }
 
   port.onMessage.addListener(async (message) => {
     const { id, method } = message
-
     if (!id || !method) {
       port.postMessage({
         error: {
@@ -475,7 +453,6 @@ export const handlePortConnection = (port: chrome.runtime.Port) => {
 
     try {
       const result = await handlePortRequest(message, port)
-
       port.postMessage({ id, result, kind: "response", from: "background" })
     } catch (err) {
       port.postMessage({
@@ -489,11 +466,12 @@ export const handlePortConnection = (port: chrome.runtime.Port) => {
     }
   })
 
-  // Cleanup pending requests associated with this port if disconnected
+  // Cleanup on disconnect
   port.onDisconnect.addListener(() => {
-    //this check for name is because of plasmo's port that's almost frequently connecting and disconnecting
+    //this check for name is because of plasmo's port that's almost frequently connecting and disconnecting during development
     if (port.name !== "fabric") return
 
+    // Cleanup pending requests associated with this por
     portRequestIds.forEach((requestId) => {
       if (pendingRequestResolvers.has(requestId)) {
         // the port is disconnected anyway, it wont be receiving the rejection and there would be no pending promises since the listener goes with the port
@@ -505,7 +483,7 @@ export const handlePortConnection = (port: chrome.runtime.Port) => {
     })
     portRequestIds.clear()
 
-    // --- NEW: Clean up subscriptions for this disconnected port ---
+    // Clean up subscriptions for this disconnected port
     const disconnectedOrigin = port.sender?.origin
     if (chrome.runtime.lastError) {
       console.error(
@@ -517,6 +495,7 @@ export const handlePortConnection = (port: chrome.runtime.Port) => {
         `Port disconnected for origin: ${disconnectedOrigin}. Port name: ${port.name}. No specific error reported.`
       )
     }
+
     if (disconnectedOrigin) {
       subscriptionToPortMap.forEach((value, subId) => {
         if (value.origin === disconnectedOrigin) {
