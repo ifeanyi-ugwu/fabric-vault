@@ -1,4 +1,4 @@
-import fabricVaultIconUrl from "url:../assets/icon.png"
+import fabricVaultIconUrl from "data-base64:assets/icon.png"
 
 window.fabric = {
   request: (payload) => {
