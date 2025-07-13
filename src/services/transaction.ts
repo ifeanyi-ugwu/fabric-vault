@@ -78,6 +78,13 @@ export async function handleSendRequest(
       } else if (message.error) {
         reject(new Error(message.error.message))
         ws.close()
+      } else {
+        reject(
+          new Error(
+            "handleSendRequest: Unhandled or mismatched WebSocket message:",
+            message
+          )
+        )
       }
     }
   })
