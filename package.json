@@ -1,7 +1,7 @@
 {
   "name": "fabric-vault",
   "displayName": "FabricVault",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "A secure browser extension wallet for Hyperledger Fabric",
   "author": "ifeanyi ugwu <valentineifeanyiugwu@outlook.com>",
   "scripts": {
