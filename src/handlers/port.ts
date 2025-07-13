@@ -50,10 +50,10 @@ async function determineAndValidateIdentity({
       identityToUseForConnection.label = await wallet.getLabelByCertificate(
         identity.certificate
       )
-      console.log(
+      /*console.log(
         "Derived label from certificate:",
         identityToUseForConnection.label
-      )
+      )*/
     } else if (identity.label) {
       // Fallback if certificate not provided but label is (less reliable as label isn't unique enough for security usually) originally meant for display
       identityToUseForConnection.label = identity.label
