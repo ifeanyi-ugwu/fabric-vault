@@ -23,9 +23,9 @@ const KEEP_ALIVE_INTERVAL = 25 * 1000 // 25 seconds
 const keepAlive = setInterval(() => {
   chrome.runtime.getPlatformInfo(() => {
     if (chrome.runtime.lastError) {
-      console.log("Keep alive ping error:", chrome.runtime.lastError)
+      //console.log("Keep alive ping error:", chrome.runtime.lastError)
     } else {
-      console.log("Keep alive ping successful")
+      //console.log("Keep alive ping successful")
     }
   })
 }, KEEP_ALIVE_INTERVAL)
