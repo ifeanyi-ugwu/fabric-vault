@@ -1,0 +1,17 @@
+{
+  "name": "@fabric-vault/types",
+  "version": "0.1.0",
+  "private": false,
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}
