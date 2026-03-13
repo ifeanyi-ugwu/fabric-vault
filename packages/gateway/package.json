@@ -1,0 +1,54 @@
+{
+  "name": "@fabric-vault/gateway",
+  "version": "1.2.1",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "type": "module",
+  "exports": {
+    "import": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "require": {
+      "types": "./dist/index.d.cts",
+      "default": "./dist/index.cjs"
+    }
+  },
+  "bin": {
+    "fabric-gateway": "./dist/main.js",
+    "hfgateway": "./dist/main.js",
+    "hyperledger-fabric-json-rpc-gateway": "./dist/main.js"
+  },
+  "scripts": {
+    "start": "node dist/main.js",
+    "dev": "tsx watch src/main.ts",
+    "build": "tsup"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "JSON-RPC WebSocket gateway bridging web applications to Hyperledger Fabric networks",
+  "dependencies": {
+    "@grpc/grpc-js": "^1.13.3",
+    "@hyperledger/fabric-gateway": "^1.7.1",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "lru-cache": "^11.1.0",
+    "ws": "^8.18.2"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.1",
+    "@types/ws": "^8.18.1",
+    "tsup": "^8.4.0",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "pkcs11js",
+      "protobufjs"
+    ]
+  }
+}
