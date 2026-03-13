@@ -1,0 +1,23 @@
+.nav-controls {
+  display: flex;
+  align-items: center;
+}
+
+.nav-button {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  opacity: 0.7;
+  margin-right: 0.5rem;
+}
+
+.nav-button:hover:not([disabled]) {
+  opacity: 1;
+}
+
+.nav-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
