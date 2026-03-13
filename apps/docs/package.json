@@ -1,0 +1,17 @@
+{
+  "name": "@fabric-vault/docs",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview"
+  },
+  "dependencies": {
+    "@fabric-vault/sdk": "workspace:*",
+    "@fabric-vault/types": "workspace:*"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.3"
+  }
+}

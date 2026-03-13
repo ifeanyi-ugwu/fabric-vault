@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FabricVault API Test</title>
+  </head>
+  <body>
+    <h1>FabricVault API Test</h1>
+    <button id="connect-btn">Connect</button>
+    <button id="identities-btn">Identities</button>
+    <button id="evaluate-btn">Evaluate Transaction</button>
+    <button id="submit-btn">Submit Transaction</button>
+    <button id="subscribe-block-event-btn">Subscribe to block events</button>
+    <button id="subscribe-chaincode-event-btn">
+      Subscribe to chaincode events
+    </button>
+
+    <script>
+      //using sample chaincode as specified in the docs: https://hyperledger-fabric.readthedocs.io/en/release-2.5/test_network.html
+      function waitForFabricVaultAPI(
+        callback,
+        retryInterval = 100,
+        maxRetries = 50
+      ) {
+        let retries = 0;
+
+        const interval = setInterval(() => {
+          if (typeof window.fabric !== "undefined") {
+            console.log("FabricVault API is available!");
+            clearInterval(interval); // Stop polling
+            callback(); // Execute callback when API is ready
+          } else {
+            retries++;
+            if (retries > maxRetries) {
+              console.error(
+                "FabricVault API is not available after maximum retries."
+              );
+              clearInterval(interval);
+            }
+          }
+        }, retryInterval);
+      }
+
+      function initializeEventListeners() {
+        console.log("Initializing event listeners for FabricVault API...");
+
+        document
+          .getElementById("connect-btn")
+          .addEventListener("click", async () => {
+            const result = await window.fabric.request({
+              method: "fabric_requestIdentities",
+            });
+            console.log("Connect Result:", result);
+          });
+
+        document
+          .getElementById("identities-btn")
+          .addEventListener("click", async () => {
+            const result = await window.fabric.request({
+              method: "fabric_identities",
+            });
+            console.log("Identities Result:", result);
+          });
+
+        document
+          .getElementById("evaluate-btn")
+          .addEventListener("click", async () => {
+            const result = await window.fabric.request({
+              method: "fabric_evaluateTransaction",
+              params: {
+                channel: "mychannel",
+                chaincode: "basic",
+                fn: "GetAllAssets",
+                args: [],
+                identity: {
+                  certificate:
+                    "-----BEGIN CERTIFICATE-----\nMIICKTCCAdCgAwIBAgIQQ9NHQqoYeRo/Ri7oRhGZeTAKBggqhkjOPQQDAjBzMQsw\nCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNU2FuIEZy\nYW5jaXNjbzEZMBcGA1UEChMQb3JnMS5leGFtcGxlLmNvbTEcMBoGA1UEAxMTY2Eu\nb3JnMS5leGFtcGxlLmNvbTAeFw0yNTA1MjExNjUzMDBaFw0zNTA1MTkxNjUzMDBa\nMGwxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpDYWxpZm9ybmlhMRYwFAYDVQQHEw1T\nYW4gRnJhbmNpc2NvMQ8wDQYDVQQLEwZjbGllbnQxHzAdBgNVBAMMFlVzZXIxQG9y\nZzEuZXhhbXBsZS5jb20wWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATsl9iQMB4o\nX40Ik79DsGmeC5X9Sn4Mi6lqjpkLKJjnUsHKk7eGUsEvxU2HYHvQVDH5yMG7J4Ko\ntnEiU2OgTKPko00wSzAOBgNVHQ8BAf8EBAMCB4AwDAYDVR0TAQH/BAIwADArBgNV\nHSMEJDAigCC1Jm2Wccj8X9YtYP9kM0ggLlV/feULssMEBXsYGO9YKTAKBggqhkjO\nPQQDAgNHADBEAiAVqLpz3jWcI/xDHNUvD8G/FHG8bz9niktdN4Torvmb+wIgZs23\nw5q48TPVHCqFalcyUwlesRGJH+DoMxGn8kuHfTc=\n-----END CERTIFICATE-----\n",
+                  mspId: "Org1MSP",
+                },
+              },
+            });
+            console.log("Evaluate Transaction Result:", result);
+          });
+
+        document
+          .getElementById("submit-btn")
+          .addEventListener("click", async () => {
+            const transaction = { amount: 100, recipient: "recipient_address" };
+            const result = await window.fabric.request({
+              method: "fabric_submitTransaction",
+              params: {
+                channel: "mychannel",
+                chaincode: {
+                  name: "basic",
+                  //contract: "A Sample ContractName",
+                },
+                fn: "TransferAsset",
+                args: ["asset6", "Christopher"],
+              },
+            });
+            console.log("Submit Transaction Result:", result);
+          });
+
+        document
+          .getElementById("subscribe-block-event-btn")
+          .addEventListener("click", async () => {
+            const result = await window.fabric.request({
+              method: "fabric_subscribe",
+              params: {
+                eventType: "block",
+                channel: "mychannel",
+                identity: {
+                  certificate:
+                    "-----BEGIN CERTIFICATE-----\nMIICKTCCAdCgAwIBAgIQQ9NHQqoYeRo/Ri7oRhGZeTAKBggqhkjOPQQDAjBzMQsw\nCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNU2FuIEZy\nYW5jaXNjbzEZMBcGA1UEChMQb3JnMS5leGFtcGxlLmNvbTEcMBoGA1UEAxMTY2Eu\nb3JnMS5leGFtcGxlLmNvbTAeFw0yNTA1MjExNjUzMDBaFw0zNTA1MTkxNjUzMDBa\nMGwxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpDYWxpZm9ybmlhMRYwFAYDVQQHEw1T\nYW4gRnJhbmNpc2NvMQ8wDQYDVQQLEwZjbGllbnQxHzAdBgNVBAMMFlVzZXIxQG9y\nZzEuZXhhbXBsZS5jb20wWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATsl9iQMB4o\nX40Ik79DsGmeC5X9Sn4Mi6lqjpkLKJjnUsHKk7eGUsEvxU2HYHvQVDH5yMG7J4Ko\ntnEiU2OgTKPko00wSzAOBgNVHQ8BAf8EBAMCB4AwDAYDVR0TAQH/BAIwADArBgNV\nHSMEJDAigCC1Jm2Wccj8X9YtYP9kM0ggLlV/feULssMEBXsYGO9YKTAKBggqhkjO\nPQQDAgNHADBEAiAVqLpz3jWcI/xDHNUvD8G/FHG8bz9niktdN4Torvmb+wIgZs23\nw5q48TPVHCqFalcyUwlesRGJH+DoMxGn8kuHfTc=\n-----END CERTIFICATE-----\n",
+                  mspId: "Org1MSP",
+                },
+              },
+            });
+            console.log("Subscription Result:", result);
+          });
+
+        document
+          .getElementById("subscribe-chaincode-event-btn")
+          .addEventListener("click", async () => {
+            const result = await window.fabric.request({
+              method: "fabric_evaluateTransaction",
+              params: {
+                eventType: "chainCode",
+                channel: "mychannel",
+                chaincode: "basic",
+              },
+            });
+            console.log("Subscription Result:", result);
+          });
+
+        window.fabric.on("connect", (data) => {
+          console.log("connected to fabric vault:", data);
+        });
+
+        window.fabric.on("disconnect", (data) => {
+          console.log("disconnected from fabric vault:", data);
+        });
+
+        window.fabric.on("identitiesChanged", (data) => {
+          console.log("identities changed in fabric vault:", data);
+        });
+
+        window.fabric.on("peerChanged", (data) => {
+          console.log("peer changed in fabric vault:", data);
+        });
+
+        window.fabric.on("fabric_subscription", (data) => {
+          console.log("fabric subscription received", data);
+        });
+      }
+
+      waitForFabricVaultAPI(initializeEventListeners);
+    </script>
+  </body>
+</html>
