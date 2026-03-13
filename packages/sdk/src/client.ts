@@ -48,64 +48,67 @@ export class FabricVaultClient {
   }
 
   /** Prompt user to authorize identities for this origin. */
-  connect(): Promise<Identity[]> {
+  connect() {
     return this.provider.request<Identity[]>({
       method: "fabric_requestIdentities",
     })
   }
 
   /** Returns identities already authorized for this origin. */
-  getIdentities(): Promise<Identity[]> {
+  getIdentities() {
     return this.provider.request<Identity[]>({ method: "fabric_identities" })
   }
 
   /** Returns the currently connected peer endpoint. */
-  getPeer(): Promise<string> {
+  getPeer() {
     return this.provider.request<string>({ method: "fabric_peer" })
   }
 
   /** Read-only query — no ledger state change. */
-  evaluate(params: TransactionParams): Promise<unknown> {
+  evaluate(params: TransactionParams) {
     return this.provider.request({
       method: "fabric_evaluateTransaction",
-      params,
+      params: params as unknown as Record<string, unknown>,
     })
   }
 
   /** Submit a transaction and wait for ledger commit. */
-  submit(params: TransactionParams): Promise<unknown> {
+  submit(params: TransactionParams) {
     return this.provider.request({
       method: "fabric_submitTransaction",
-      params,
+      params: params as unknown as Record<string, unknown>,
     })
   }
 
   /** Submit a transaction and return immediately after orderer confirmation. */
-  submitAsync(params: TransactionParams): Promise<{ transactionId: string }> {
+  submitAsync(params: TransactionParams) {
     return this.provider.request<{ transactionId: string }>({
       method: "fabric_submitAsync",
-      params,
+      params: params as unknown as Record<string, unknown>,
     })
   }
 
   /** Subscribe to block events on a channel. Returns the subscription ID. */
-  subscribeBlocks(params: SubscribeBlockParams): Promise<string> {
+  subscribeBlocks(params: SubscribeBlockParams) {
     return this.provider.request<string>({
       method: "fabric_subscribe",
-      params: { eventType: "block", ...params },
+      params: { eventType: "block", ...(params as unknown as Record<string, unknown>) },
     })
   }
 
   /** Subscribe to chaincode events. Returns the subscription ID. */
-  subscribeChaincodeEvents(params: SubscribeChaincodeParams): Promise<string> {
+  subscribeChaincodeEvents(params: SubscribeChaincodeParams) {
     return this.provider.request<string>({
       method: "fabric_subscribe",
-      params: { eventType: "chaincode", ...params },
+      params: {
+        eventType: "chaincode",
+        ...(params as unknown as Record<string, unknown>),
+      },
     })
   }
 
   /** Cancel an active subscription by ID. */
-  unsubscribe(subscriptionId: string): Promise<{ success: boolean }> {
+  unsubscribe(subscriptionId: string) {
     return this.provider.request<{ success: boolean }>({
       method: "fabric_unsubscribe",
       params: { subscriptionId },
