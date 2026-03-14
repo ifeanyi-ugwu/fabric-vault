@@ -43,7 +43,7 @@ configuration required.
 
 **Option 2 — Public hosted gateway:**
 
-A gateway instance is available at `ws://hyperledger-fabric-json-rpc-gateway.onrender.com`.
+A gateway instance is available at `wss://hyperledger-fabric-json-rpc-gateway.onrender.com`.
 
 > This is hosted on a Render free plan and subject to cold starts and rate
 > limits. Use it for quick experiments only — self-host for anything beyond
