@@ -60,6 +60,10 @@
   border-color: var(--border-default);
 }
 
+.header-dropdown-trigger svg {
+  flex-shrink: 0;
+}
+
 .header-label {
   font-size: var(--text-xs);
   font-weight: 500;
