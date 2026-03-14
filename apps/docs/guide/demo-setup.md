@@ -41,7 +41,7 @@ After adding both, select an active peer and identity in the dashboard.
 
 ### 2. Hyperledger Fabric Network
 
-Your network must be running and accessible from the browser's host machine. The demo pages default to `mychannel` and the `basic` asset transfer chaincode from the Fabric Samples test network.
+Your network must be running and accessible from the browser's host machine. The demo pages default to `mychannel` and the `basic` asset transfer chaincode from the [Fabric Samples test network](https://hyperledger-fabric.readthedocs.io/en/release-2.5/test_network.html).
 
 ### 3. JSON-RPC Gateway
 
