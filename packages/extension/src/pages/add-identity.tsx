@@ -21,12 +21,12 @@ export function AddIdentity() {
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label htmlFor="label">Label</label>
-            <input type="text" id="label" name="label" required />
+            <input type="text" id="label" name="label" placeholder="e.g. admin" required />
           </div>
 
           <div className="form-group">
             <label htmlFor="organization">Organization MSP</label>
-            <input type="text" id="organization" name="organization" required />
+            <input type="text" id="organization" name="organization" placeholder="e.g. Org1MSP" required />
           </div>
 
           <div className="form-group">
@@ -35,13 +35,19 @@ export function AddIdentity() {
               accept=".pem,.crt"
               fileName={certificateFileName}
               onChange={handleCertificateFile}
-              placeholder="Drop .pem or .crt here, or click to browse"
+              placeholder="Drop .pem or .crt, or click to browse"
             />
           </div>
 
           <div className="form-group">
             <label htmlFor="privateKey">Private Key (PEM)</label>
-            <textarea id="privateKey" name="privateKey" rows={5} required />
+            <textarea
+              id="privateKey"
+              name="privateKey"
+              rows={4}
+              placeholder="-----BEGIN PRIVATE KEY-----"
+              required
+            />
           </div>
 
           {errorMessage && (
@@ -49,9 +55,7 @@ export function AddIdentity() {
           )}
 
           <div className="form-actions">
-            <Button
-              variant="outline"
-              onClick={() => navigate({ to: "/dashboard" })}>
+            <Button variant="outline" onClick={() => navigate({ to: "/dashboard" })}>
               Cancel
             </Button>
             <Button type="submit">Add Identity</Button>

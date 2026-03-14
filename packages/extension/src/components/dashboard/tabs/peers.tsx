@@ -28,7 +28,7 @@ export function Peers() {
   }
 
   return (
-    <div className="tab-content">
+    <div>
       <div className="section-header">
         <h3>Your Peers</h3>
         <Modal isOpen={isAddModalOpen} onOpenChange={handleAddModalOpenChange}>

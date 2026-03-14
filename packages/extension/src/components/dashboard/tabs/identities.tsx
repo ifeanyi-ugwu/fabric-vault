@@ -12,7 +12,7 @@ export const Identities = () => {
     useIdentity()
 
   return (
-    <div className="tab-content">
+    <div>
       <div className="section-header">
         <h3>Your Identities</h3>
         <Button

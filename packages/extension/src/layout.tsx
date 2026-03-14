@@ -8,17 +8,15 @@ import { VaultProvider } from "./contexts/vault"
 export const Layout = ({ children }) => {
   return (
     <div className="container">
-      <main className="content">
-        <VaultProvider>
-          <IdentityProvider>
-            <PeerProvider>
-              <ConnectionProvider>
-                <RequestProvider>{children}</RequestProvider>
-              </ConnectionProvider>{" "}
-            </PeerProvider>
-          </IdentityProvider>
-        </VaultProvider>
-      </main>
+      <VaultProvider>
+        <IdentityProvider>
+          <PeerProvider>
+            <ConnectionProvider>
+              <RequestProvider>{children}</RequestProvider>
+            </ConnectionProvider>
+          </PeerProvider>
+        </IdentityProvider>
+      </VaultProvider>
     </div>
   )
 }

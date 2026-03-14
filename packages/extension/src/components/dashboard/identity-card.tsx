@@ -3,7 +3,6 @@ import type { Identity } from "~/contexts/identity"
 interface IdentityCardProps {
   identity: Identity
   isActive: boolean
-  //onSelect: (id: string) => void
   onClick: () => void
   onDelete: (identity: Identity) => void
 }
@@ -21,19 +20,28 @@ export const IdentityCard = ({
         {isActive && <span className="active-badge">Active</span>}
       </div>
       <div className="id-details">
-        <div className="id-org">MSP ID: {identity.mspId}</div>
+        <span className="id-org">{identity.mspId}</span>
       </div>
       <div className="id-actions">
-        <button className="icon-button" title="Copy ID">
+        <button
+          className="icon-button"
+          title="Copy label"
+          onClick={(e) => {
+            e.stopPropagation()
+            navigator.clipboard.writeText(identity.label)
+          }}>
           <span className="copy-icon" />
         </button>
-        <button className="icon-button" title="Export Certificate">
+        <button className="icon-button" title="Export certificate" onClick={(e) => e.stopPropagation()}>
           <span className="export-icon" />
         </button>
         <button
           className="icon-button"
-          title="Delete Identity"
-          onClick={() => onDelete(identity)}>
+          title="Delete identity"
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete(identity)
+          }}>
           <span className="delete-icon" />
         </button>
       </div>

@@ -17,16 +17,14 @@ function Dashboard() {
   ]
 
   return (
-    <div className="view">
+    <div className="dashboard">
       <HeaderBar />
-
       <Tabs activeTab={activeTab} onTabChange={setActiveTab} tabs={tabs} />
-
-      {activeTab === "identities" && <Identities />}
-
-      {activeTab === "peers" && <Peers />}
-
-      {activeTab === "settings" && <Settings />}
+      <div className="dashboard-body">
+        {activeTab === "identities" && <Identities />}
+        {activeTab === "peers" && <Peers />}
+        {activeTab === "settings" && <Settings />}
+      </div>
     </div>
   )
 }
