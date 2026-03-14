@@ -1,6 +1,7 @@
 import { defineConfig } from "vitepress"
 
 export default defineConfig({
+  base: "/fabric-vault/",
   title: "Fabric Vault",
   description: "Secure browser wallet for Hyperledger Fabric",
   themeConfig: {
@@ -17,6 +18,7 @@ export default defineConfig({
           { text: "Transactions", link: "/guide/transactions" },
           { text: "Subscriptions", link: "/guide/subscriptions" },
           { text: "Examples", link: "/guide/examples" },
+          { text: "Demo Setup", link: "/guide/demo-setup" },
         ],
       },
     ],
