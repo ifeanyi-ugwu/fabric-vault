@@ -27,16 +27,19 @@ export const PeerCard = ({
     onClick(peer)
   }
 
-  const handleDeleteClick = () => {
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
     setIsDeleteConfirmationOpen(true)
   }
 
-  const confirmDelete = () => {
+  const confirmDelete = (e: React.MouseEvent) => {
+    e.stopPropagation()
     onDelete(peer)
     setIsDeleteConfirmationOpen(false)
   }
 
-  const cancelDelete = () => {
+  const cancelDelete = (e: React.MouseEvent) => {
+    e.stopPropagation()
     setIsDeleteConfirmationOpen(false)
   }
 
