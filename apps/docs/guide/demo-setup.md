@@ -11,7 +11,7 @@ Install the extension in your browser and configure it with at least one peer an
 **Adding a peer** (Dashboard → Peers tab):
 - Name — e.g. `peer0.org1.example.com`
 - Endpoint — e.g. `localhost:7051`
-- RPC URL — e.g. `ws://localhost:7545` (self-hosted gateway) or the public gateway URL
+- RPC URL — e.g. `ws://localhost:7545` (self-hosted) or `ws://hyperledger-fabric-json-rpc-gateway.onrender.com` (public, free plan)
 - TLS CA Certificate — import the `.crt` file for the peer
 
 For Fabric Samples users, the TLS CA cert for `peer0.org1.example.com` is at:
