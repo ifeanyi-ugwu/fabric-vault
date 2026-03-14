@@ -1,6 +1,6 @@
 # @fabric-vault/sdk
 
-TypeScript SDK for connecting dApps to the [FabricVault](https://ifeanyiugwu.github.io/fabric-vault/) browser extension.
+TypeScript SDK for connecting dApps to the [FabricVault](https://ifeanyi-ugwu.github.io/fabric-vault/) browser extension.
 
 ## Install
 
@@ -64,4 +64,4 @@ The FabricVault extension must be installed in the user's browser. `waitForProvi
 
 ## Full Documentation
 
-[ifeanyiugwu.github.io/fabric-vault](https://ifeanyiugwu.github.io/fabric-vault/)
+[ifeanyi-ugwu.github.io/fabric-vault](https://ifeanyi-ugwu.github.io/fabric-vault/)

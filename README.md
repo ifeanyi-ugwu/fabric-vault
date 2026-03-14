@@ -2,7 +2,7 @@
 
 A browser extension wallet for Hyperledger Fabric — lets dApps request transaction signing without ever handling private keys, in the same pattern as MetaMask for EVM chains.
 
-**[Documentation](https://ifeanyiugwu.github.io/fabric-vault/)**
+**[Documentation](https://ifeanyi-ugwu.github.io/fabric-vault/)**
 
 ---
 
@@ -38,7 +38,7 @@ A browser extension wallet for Hyperledger Fabric — lets dApps request transac
    const identities = await client.connect()
    ```
 
-See the [Getting Started guide](https://ifeanyiugwu.github.io/fabric-vault/guide/) for full setup instructions.
+See the [Getting Started guide](https://ifeanyi-ugwu.github.io/fabric-vault/guide/) for full setup instructions.
 
 ---
 

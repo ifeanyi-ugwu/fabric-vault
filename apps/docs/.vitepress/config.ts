@@ -26,7 +26,7 @@ export default defineConfig({
     socialLinks: [
       {
         icon: "github",
-        link: "https://github.com/ifeanyiugwu/fabric-vault",
+        link: "https://github.com/ifeanyi-ugwu/fabric-vault",
       },
     ],
   },
