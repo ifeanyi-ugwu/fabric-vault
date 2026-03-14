@@ -10,17 +10,24 @@ import { PeerCard } from "../peer-card"
 
 export function Peers() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [peerToEdit, setPeerToEdit] = useState<Peer | null>(null)
   const {
     peers,
     selectedPeer: activePeer,
     switchPeer,
     removePeer,
-    addPeer
+    addPeer,
+    updatePeer
   } = usePeer()
 
-  const handleAddPeer = (newPeerData: Peer) => {
-    addPeer(newPeerData)
+  const handleAddPeer = ({ id: _id, ...rest }: Peer) => {
+    addPeer(rest)
     setIsAddModalOpen(false)
+  }
+
+  const handleEditPeer = (updatedPeer: Peer) => {
+    updatePeer(updatedPeer)
+    setPeerToEdit(null)
   }
 
   const handleAddModalOpenChange = (open: boolean) => {
@@ -40,7 +47,7 @@ export function Peers() {
           <Modal.Content>
             <Modal.Header>Add New Peer</Modal.Header>
             <Modal.Body>
-              <AddPeerForm onSubmit={handleAddPeer} onCancel={() => setIsAddModalOpen(false)} />
+              <PeerForm onSubmit={handleAddPeer} onCancel={() => setIsAddModalOpen(false)} />
             </Modal.Body>
           </Modal.Content>
         </Modal>
@@ -54,6 +61,7 @@ export function Peers() {
               peer={peer}
               isActive={activePeer?.id === peer.id}
               onClick={() => switchPeer(peer)}
+              onEdit={(p) => setPeerToEdit(p)}
               onDelete={() => removePeer(peer)}
             />
           ))}
@@ -66,22 +74,40 @@ export function Peers() {
           onAction={() => setIsAddModalOpen(true)}
         />
       )}
+
+      <Modal isOpen={peerToEdit !== null} onOpenChange={(open) => { if (!open) setPeerToEdit(null) }}>
+        <Modal.Content>
+          <Modal.Header>Edit Peer</Modal.Header>
+          <Modal.Body>
+            {peerToEdit && (
+              <PeerForm
+                initialPeer={peerToEdit}
+                onSubmit={handleEditPeer}
+                onCancel={() => setPeerToEdit(null)}
+              />
+            )}
+          </Modal.Body>
+        </Modal.Content>
+      </Modal>
     </div>
   )
 }
 
-interface AddPeerFormProps {
-  onSubmit: (newPeerData: Partial<Peer>) => void
+interface PeerFormProps {
+  initialPeer?: Peer
+  onSubmit: (peerData: Peer) => void
   onCancel: () => void
 }
 
-const AddPeerForm = ({ onSubmit, onCancel }: AddPeerFormProps) => {
-  const [peerName, setPeerName] = useState("")
-  const [peerEndpoint, setPeerEndpoint] = useState("")
-  const [rpcUrl, setRpcUrl] = useState("")
-  const [tlsRootCert, setTlsRootCert] = useState<string | null>(null)
+const PeerForm = ({ initialPeer, onSubmit, onCancel }: PeerFormProps) => {
+  const [peerName, setPeerName] = useState(initialPeer?.name ?? "")
+  const [peerEndpoint, setPeerEndpoint] = useState(initialPeer?.endpoint ?? "")
+  const [rpcUrl, setRpcUrl] = useState(initialPeer?.rpcUrl ?? "")
+  const [tlsRootCert, setTlsRootCert] = useState<string | null>(initialPeer?.tlsRootCert ?? null)
   const [tlsFileName, setTlsFileName] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  const isEditing = initialPeer !== undefined
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault()
@@ -99,13 +125,13 @@ const AddPeerForm = ({ onSubmit, onCancel }: AddPeerFormProps) => {
       return
     }
 
-    onSubmit({ name: peerName, endpoint: peerEndpoint, rpcUrl, tlsRootCert })
-    setPeerName("")
-    setPeerEndpoint("")
-    setRpcUrl("")
-    setTlsRootCert(null)
-    setTlsFileName(null)
-    setError(null)
+    onSubmit({
+      id: initialPeer?.id ?? crypto.randomUUID(),
+      name: peerName,
+      endpoint: peerEndpoint,
+      rpcUrl,
+      tlsRootCert
+    })
   }
 
   const handleTlsFile = (file: File) => {
@@ -159,7 +185,7 @@ const AddPeerForm = ({ onSubmit, onCancel }: AddPeerFormProps) => {
 
       <div className="form-actions">
         <Button variant="outline" onClick={onCancel}>Cancel</Button>
-        <Button type="submit">Add Peer</Button>
+        <Button type="submit">{isEditing ? "Save Changes" : "Add Peer"}</Button>
       </div>
     </form>
   )

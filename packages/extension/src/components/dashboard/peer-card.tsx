@@ -9,6 +9,7 @@ interface PeerCardProps {
   peer: Peer
   isActive: boolean
   onClick: (peer: Peer) => void
+  onEdit: (peer: Peer) => void
   onDelete: (peer: Peer) => void
 }
 
@@ -16,6 +17,7 @@ export const PeerCard = ({
   peer,
   isActive,
   onClick,
+  onEdit,
   onDelete
 }: PeerCardProps) => {
   const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] =
@@ -49,6 +51,11 @@ export const PeerCard = ({
         {peer.tlsRootCert && <p className="peer-cert">Has Cert</p>}
       </div>
       <div className="peer-actions">
+        <Button
+          size="small"
+          onClick={(e) => { e.stopPropagation(); onEdit(peer) }}>
+          Edit
+        </Button>
         <Button
           className="delete-button"
           size="small"
