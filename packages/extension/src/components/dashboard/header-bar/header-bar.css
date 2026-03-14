@@ -1,21 +1,21 @@
-/* Header Bar Styles */
 .header-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 64px;
-  padding: 0 8px;
-  border-bottom: 1px solid var(--border-color, #e2e8f0);
-  background-color: var(--header-bg, white);
+  height: 56px;
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  background-color: var(--bg-surface);
+  flex-shrink: 0;
 }
 
 .header-bar-inner {
   display: flex;
   flex-grow: 1;
-  gap: 16px;
+  gap: var(--space-2);
+  min-width: 0;
 }
 
-/* Left section with channel dropdown */
 .header-channel-section {
   display: flex;
   flex: 1;
@@ -23,7 +23,6 @@
   min-width: 0;
 }
 
-/* Middle section with identity dropdown */
 .header-identity-section {
   display: flex;
   flex: 1;
@@ -32,7 +31,6 @@
   min-width: 0;
 }
 
-/* Right section with menu */
 .header-menu-section {
   display: flex;
   align-items: center;
@@ -40,34 +38,38 @@
   flex-shrink: 0;
 }
 
-/* Common styles for dropdown triggers */
+/* Pill-shaped dropdown triggers in the header */
 .header-dropdown-trigger {
   display: flex;
   align-items: center;
-  gap: 8px;
-  height: 36px;
-  padding: 0 12px;
-  border-radius: 18px;
-  background-color: var(--trigger-bg, #f5f7fa);
+  gap: var(--space-2);
+  height: 32px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-full);
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
   cursor: pointer;
-  transition: background-color 0.2s;
-  width: 120px;
+  transition: background-color var(--t-fast), border-color var(--t-fast);
+  min-width: 0;
   flex: 1;
+  max-width: 130px;
 }
 
 .header-dropdown-trigger:hover {
-  background-color: var(--trigger-hover-bg, #e9ecef);
+  background-color: var(--bg-hover);
+  border-color: var(--border-default);
 }
 
-/* Header label text */
 .header-label {
-  font-size: 14px;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Identity icon container with connection indicator */
+/* Identity icon with connection dot */
 .identity-icon-container {
   position: relative;
   display: flex;
@@ -76,26 +78,25 @@
   flex-shrink: 0;
 }
 
-/* Connection indicator dot */
 .connection-indicator {
   position: absolute;
   bottom: -2px;
   right: -2px;
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
+  border: 1px solid var(--bg-surface);
 }
 
 .connection-indicator.connected {
-  background-color: var(--connected-color, #10b981);
+  background-color: var(--success);
 }
 
 .connection-indicator.disconnected {
-  background-color: var(--disconnected-bg, #d1d5db);
-  border: 1px solid var(--disconnected-border, #9ca3af);
+  background-color: var(--border-strong);
 }
 
-/* Dropdown item styling */
+/* Dropdown item content layout */
 .dropdown-item-content {
   display: flex;
   align-items: center;
@@ -109,199 +110,211 @@
 }
 
 .identity-connection-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  margin-right: 8px;
+  margin-right: var(--space-2);
+  flex-shrink: 0;
 }
 
 .identity-connection-dot.connected {
-  border: 1px solid var(--connected-color, #10b981);
+  background-color: var(--success);
 }
 
 .identity-connection-dot.disconnected {
-  border: 1px solid var(--disconnected-border, #9ca3af);
-  background-color: var(--disconnected-bg, #d1d5db);
+  background-color: var(--border-strong);
 }
 
 .identity-connection-dot.selected.connected {
-  background-color: var(--connected-color, #10b981);
+  background-color: var(--success);
+  box-shadow: 0 0 0 2px var(--success-subtle);
 }
 
 .check-mark {
-  color: var(--primary-color, #3b82f6);
-  margin-left: 8px;
-  font-weight: bold;
+  color: var(--accent);
+  margin-left: var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: 700;
 }
 
-/* Connection status section */
+/* Connection status section inside the dropdown */
 .connection-status-section {
-  padding: 12px;
-  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .status-label {
-  font-size: 10px;
-  font-weight: 500;
-  color: var(--text-muted, #64748b);
-  margin-bottom: 4px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-tertiary);
+  margin-bottom: var(--space-1);
   text-transform: uppercase;
+  letter-spacing: 0.6px;
 }
 
 .status-text {
-  font-size: 13px;
-  margin-bottom: 8px;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+  line-height: 1.4;
 }
 
 .connection-button {
   width: 100%;
-  padding: 6px 12px;
-  border-radius: 4px;
-  border: 1px solid var(--border-color, #e2e8f0);
-  background-color: white;
-  font-size: 12px;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
+  background-color: transparent;
+  font-size: var(--text-xs);
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color var(--t-fast), border-color var(--t-fast), color var(--t-fast);
+  color: var(--text-secondary);
 }
 
 .connection-button.connect {
-  color: var(--primary-color, #3b82f6);
-  border-color: var(--primary-color, #3b82f6);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .connection-button.connect:hover {
-  background-color: var(--primary-light, #eff6ff);
+  background-color: var(--accent-subtle);
 }
 
 .connection-button.disconnect:hover {
-  background-color: var(--gray-light, #f1f5f9);
+  background-color: var(--bg-hover);
 }
 
-/* Identity list */
 .identity-list {
-  max-height: 200px;
+  max-height: 180px;
   overflow-y: auto;
 }
 
-/* Connection notification */
+/* Inline connection notification (slide-down toast) */
 .connection-notification {
   position: absolute;
-  top: 44px;
+  top: 40px;
   right: 0;
-  width: 240px;
-  background-color: white;
-  border: 1px solid var(--border-color, #e2e8f0);
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  width: 220px;
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
   z-index: 100;
-  animation: slideIn 0.2s ease-out;
+  animation: slideIn 0.15s ease-out;
 }
 
 @keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .notification-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px;
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .notification-title {
-  font-weight: 500;
-  font-size: 14px;
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
 }
 
 .close-button {
   background: none;
   border: none;
-  font-size: 18px;
+  font-size: var(--text-lg);
   line-height: 1;
-  color: var(--text-muted, #64748b);
+  color: var(--text-tertiary);
   cursor: pointer;
+  transition: color var(--t-fast);
+}
+
+.close-button:hover {
+  color: var(--text-secondary);
 }
 
 .notification-message {
-  padding: 0 12px 12px;
-  font-size: 12px;
-  color: var(--text-muted, #64748b);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
 }
 
 .notification-actions {
   display: flex;
-  padding: 12px;
-  gap: 8px;
-  border-top: 1px solid var(--border-color, #e2e8f0);
+  padding: var(--space-3);
+  gap: var(--space-2);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .cancel-button,
 .connect-button {
   flex: 1;
-  padding: 6px 12px;
-  border-radius: 4px;
-  font-size: 12px;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color var(--t-fast), color var(--t-fast);
+  font-weight: 500;
 }
 
 .cancel-button {
-  background-color: white;
-  border: 1px solid var(--border-color, #e2e8f0);
+  background-color: transparent;
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
 }
 
 .cancel-button:hover {
-  background-color: var(--gray-light, #f1f5f9);
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .connect-button {
-  background-color: var(--primary-color, #3b82f6);
-  color: white;
-  border: none;
+  background-color: var(--accent);
+  color: #fff;
+  border: 1px solid var(--accent);
 }
 
 .connect-button:hover {
-  background-color: var(--primary-dark, #2563eb);
+  background-color: var(--accent-hover);
 }
 
-/* Menu button */
+/* Menu button (hamburger) */
 .menu-button {
   background: none;
   border: none;
   cursor: pointer;
-  padding: 8px;
+  padding: var(--space-2);
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  transition: background-color 0.2s;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  transition: background-color var(--t-fast), color var(--t-fast);
 }
 
 .menu-button:hover {
-  background-color: var(--gray-light, #f1f5f9);
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .menu-link {
   display: block;
-  padding: 8px 16px;
+  padding: var(--space-2) var(--space-3);
   text-decoration: none;
-  color: var(--text-default, #1e293b);
-  transition: background-color 0.2s;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  transition: background-color var(--t-fast), color var(--t-fast);
 }
 
 .menu-link:hover {
-  background-color: var(--gray-light, #f1f5f9);
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .identity-container {
   position: relative;
-  transition: all 0.3s ease;
   width: 100%;
 }
