@@ -14,54 +14,20 @@ export function SignRequest() {
 
   if (loading) {
     return (
-      <div className="container view">
-        <div className="content">
-          <div className="card">
-            <div className="text-center mb-4">
-              <div className="logo-large">FabricVault</div>
-              <div className="welcome-subtitle">
-                Loading transaction request...
-              </div>
-            </div>
-          </div>
-        </div>
+      <div className="request-screen">
+        <div className="request-brand">FabricVault</div>
+        <p className="request-loading">Loading request…</p>
       </div>
     )
   }
 
-  if (requestError) {
+  if (requestError || !request) {
     return (
-      <div className="container view">
-        <div className="content">
-          <div className="card">
-            <div className="card-title text-center">Error</div>
-            <div className="error-message text-center">{requestError}</div>
-            <button
-              className="button button-primary full-width mt-4"
-              onClick={() => window.close()}>
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (!request) {
-    return (
-      <div className="container view">
-        <div className="content">
-          <div className="card">
-            <div className="card-title text-center">No Request</div>
-            <p className="text-center mb-4">
-              No transaction request to handle.
-            </p>
-            <button
-              className="button button-primary full-width"
-              onClick={() => window.close()}>
-              Close
-            </button>
-          </div>
+      <div className="request-screen">
+        <div className="request-brand">FabricVault</div>
+        <div className="request-card">
+          <p className="request-error">{requestError || "No transaction request to handle."}</p>
+          <Button fullWidth onClick={() => window.close()}>Close</Button>
         </div>
       </div>
     )
@@ -72,34 +38,20 @@ export function SignRequest() {
     setSending(true)
     try {
       if (!selectedPeer || !selectedIdentity) {
-        setError(
-          "You must select both an identity and a peer before approving the transaction."
-        )
+        setError("Select both an identity and a peer before approving.")
+        setSending(false)
         return
       }
-
-      console.log({ payload: request.payload })
-
       const response = await chrome.runtime.sendMessage({
         type: "SEND_TRANSACTION_REQUEST",
-        payload: {
-          peer: selectedPeer,
-          identity: selectedIdentity,
-          request: request
-        }
+        payload: { peer: selectedPeer, identity: selectedIdentity, request }
       })
-
-      if (!response || !response.success) {
-        throw new Error(
-          response?.error || "Failed to initiate transaction in background."
-        )
+      if (!response?.success) {
+        throw new Error(response?.error || "Failed to initiate transaction.")
       }
-
       window.close()
     } catch (err) {
-      console.error("Failed to sign transaction:", err)
-      setError(`Failed to sign transaction: ${err}`)
-    } finally {
+      setError(`Failed: ${err}`)
       setSending(false)
     }
   }
@@ -112,77 +64,63 @@ export function SignRequest() {
       })
       window.close()
     } catch (err) {
-      console.error("Failed to reject transaction:", err)
-      setError(`Failed to reject transaction: ${err}`)
+      setError(`Failed: ${err}`)
     }
   }
 
+  const canApprove = !!selectedIdentity && !!selectedPeer
+
   return (
-    <div className="container view">
-      <div className="header">
-        <div className="logo">FabricVault</div>
-        <div className="network-status">
-          <span className="status-dot active"></span>
-          <span className="network-name">{selectedPeer?.name}</span>
-        </div>
+    <div className="request-screen">
+      <div className="request-header">
+        <span className="request-brand-sm">FabricVault</span>
+        {selectedPeer && (
+          <span className="request-peer">
+            <span className="status-dot active" />
+            {selectedPeer.name}
+          </span>
+        )}
       </div>
 
-      <div className="content">
-        <div className="card">
-          <div className="card-title">Transaction Approval</div>
-          <div className="card-subtitle">
-            {request.origin} wants to initiate a transaction that may require
-            your signature.
+      <div className="request-body">
+        <div className="request-origin-badge">
+          <span className="request-origin-icon" />
+          <span className="request-origin-text">{request.origin}</span>
+        </div>
+
+        <h2 className="request-title">Transaction approval</h2>
+        <p className="request-desc">
+          This site wants to submit a transaction using your identity.
+        </p>
+
+        {!selectedIdentity && (
+          <div className="request-warning">
+            No identity selected. Return to the dashboard to select one.
           </div>
-
-          {!selectedIdentity && (
-            <div className="form-help mb-4 text-danger text-bold text-center">
-              🤔 You haven't selected an identity yet.
-              <br />
-              If you haven't added one, you'll need to do that first.
-              <br />
-              Head to your dashboard to add or pick the one you'd like to use.
-            </div>
-          )}
-
-          {!selectedPeer && (
-            <div className="form-help mb-4 text-warning text-bold text-center">
-              📡 You haven't selected a peer yet.
-              <br />
-              If you haven't added one, that's your first step.
-              <br />
-              Head to your dashboard to add or pick the peer you'd like to
-              connect to.
-            </div>
-          )}
-
-          <div className="form-group">
-            <label>Transaction Details</label>
-            <div className="recovery-phrase-container">
-              <pre
-                style={{
-                  overflow: "auto",
-                  maxHeight: "200px",
-                  fontSize: "var(--text-xs)"
-                }}>
-                {JSON.stringify(request.payload, null, 2)}
-              </pre>
-            </div>
+        )}
+        {!selectedPeer && (
+          <div className="request-warning">
+            No peer selected. Return to the dashboard to select one.
           </div>
+        )}
 
-          {error && <p className="error-message">{error}</p>}
-
-          <div className="form-actions mt-5">
-            <Button variant="outline" onClick={handleReject}>
-              Reject
-            </Button>
-            <Button
-              onClick={handleApprove}
-              disabled={sending || !selectedIdentity || !selectedPeer}>
-              {sending ? "Approving..." : "Approve"}
-            </Button>
+        <div className="form-group">
+          <label>Transaction payload</label>
+          <div className="recovery-phrase-container">
+            <pre>{JSON.stringify(request.payload, null, 2)}</pre>
           </div>
         </div>
+
+        {error && <div className="error-message">{error}</div>}
+      </div>
+
+      <div className="request-actions">
+        <Button variant="outline" onClick={handleReject} disabled={sending}>
+          Reject
+        </Button>
+        <Button onClick={handleApprove} disabled={sending || !canApprove}>
+          {sending ? "Approving…" : "Approve"}
+        </Button>
       </div>
     </div>
   )
