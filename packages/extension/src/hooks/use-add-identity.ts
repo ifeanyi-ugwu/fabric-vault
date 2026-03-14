@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router"
-import { useState, type ChangeEvent, type FormEvent } from "react"
+import { useState, type FormEvent } from "react"
 
 import { useIdentity } from "~/contexts/identity"
 
@@ -7,23 +7,25 @@ export function useAddIdentity() {
   const navigate = useNavigate()
   const { addIdentity } = useIdentity()
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [certificateFileName, setCertificateFileName] = useState<string | null>(
+    null
+  )
   const [certificateFileContent, setCertificateFileContent] = useState<
     string | null
   >(null)
 
-  const handleCertificateChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        setCertificateFileContent(e.target?.result as string | null)
-      }
-      reader.onerror = () => {
-        setErrorMessage("Failed to read the certificate file.")
-        setCertificateFileContent(null)
-      }
-      reader.readAsText(file)
+  const handleCertificateFile = (file: File) => {
+    setCertificateFileName(file.name)
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      setCertificateFileContent(e.target?.result as string | null)
     }
+    reader.onerror = () => {
+      setErrorMessage("Failed to read the certificate file.")
+      setCertificateFileContent(null)
+      setCertificateFileName(null)
+    }
+    reader.readAsText(file)
   }
 
   /**
@@ -127,7 +129,8 @@ export function useAddIdentity() {
 
   return {
     handleSubmit,
-    handleCertificateChange,
+    handleCertificateFile,
+    certificateFileName,
     certificateFileContent,
     errorMessage
   }

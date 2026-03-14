@@ -1,6 +1,7 @@
 import { useState } from "react"
 
 import { Button } from "~/components/ui/button"
+import { DropZone } from "~/components/ui/drop-zone"
 import { Modal } from "~/components/ui/modal"
 import { usePeer, type Peer } from "~/contexts/peer"
 
@@ -81,6 +82,7 @@ const AddPeerForm = ({ onSubmit }: AddPeerFormProps) => {
   const [peerEndpoint, setPeerEndpoint] = useState("")
   const [rpcUrl, setRpcUrl] = useState("")
   const [tlsRootCert, setTlsRootCert] = useState<string | null>(null)
+  const [tlsFileName, setTlsFileName] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = (event: React.FormEvent) => {
@@ -104,25 +106,24 @@ const AddPeerForm = ({ onSubmit }: AddPeerFormProps) => {
     setPeerEndpoint("")
     setRpcUrl("")
     setTlsRootCert(null)
+    setTlsFileName(null)
     setError(null)
   }
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        setTlsRootCert(e.target?.result as string)
-      }
-      reader.readAsText(file)
+  const handleTlsFile = (file: File) => {
+    setTlsFileName(file.name)
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      setTlsRootCert(e.target?.result as string)
     }
+    reader.readAsText(file)
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit}>
       {error && <p className="error-message">{error}</p>}
-      <div>
-        <label htmlFor="peerName">Peer Name:</label>
+      <div className="form-group">
+        <label htmlFor="peerName">Peer Name</label>
         <input
           type="text"
           id="peerName"
@@ -130,8 +131,8 @@ const AddPeerForm = ({ onSubmit }: AddPeerFormProps) => {
           onChange={(e) => setPeerName(e.target.value)}
         />
       </div>
-      <div>
-        <label htmlFor="peerEndpoint">Peer Endpoint:</label>
+      <div className="form-group">
+        <label htmlFor="peerEndpoint">Peer Endpoint</label>
         <input
           type="text"
           id="peerEndpoint"
@@ -139,8 +140,8 @@ const AddPeerForm = ({ onSubmit }: AddPeerFormProps) => {
           onChange={(e) => setPeerEndpoint(e.target.value)}
         />
       </div>
-      <div>
-        <label htmlFor="rpcUrl">RPC URL:</label>
+      <div className="form-group">
+        <label htmlFor="rpcUrl">RPC URL</label>
         <input
           type="text"
           id="rpcUrl"
@@ -148,22 +149,17 @@ const AddPeerForm = ({ onSubmit }: AddPeerFormProps) => {
           onChange={(e) => setRpcUrl(e.target.value)}
         />
       </div>
-      <div>
-        <label htmlFor="tlsRootCert">TLS Root Certificate (Optional):</label>
-        <input
-          type="file"
-          id="tlsRootCert"
+      <div className="form-group">
+        <label>TLS Root Certificate (Optional)</label>
+        <DropZone
           accept=".crt,.pem"
-          onChange={handleFileChange}
+          fileName={tlsFileName}
+          onChange={handleTlsFile}
+          placeholder="Drop .crt or .pem here, or click to browse"
         />
-        {tlsRootCert && (
-          <div className="mt-2 text-sm text-gray-500">
-            Selected File: {tlsRootCert.substring(0, 50)}...
-          </div>
-        )}
       </div>
 
-      <Button type="submit" className="mt-4">
+      <Button type="submit" fullWidth>
         Add Peer
       </Button>
     </form>

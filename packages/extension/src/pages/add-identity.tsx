@@ -2,6 +2,7 @@ import { useNavigate } from "@tanstack/react-router"
 
 import { Button } from "~/components/ui/button"
 import { Card } from "~/components/ui/card"
+import { DropZone } from "~/components/ui/drop-zone"
 import { useAddIdentity } from "~/hooks/use-add-identity"
 
 export function AddIdentity() {
@@ -9,8 +10,8 @@ export function AddIdentity() {
 
   const {
     handleSubmit,
-    handleCertificateChange,
-    certificateFileContent,
+    handleCertificateFile,
+    certificateFileName,
     errorMessage
   } = useAddIdentity()
 
@@ -19,7 +20,7 @@ export function AddIdentity() {
       <Card title="Add Identity" subtitle="Add a new identity to your wallet">
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="name">Label</label>
+            <label htmlFor="label">Label</label>
             <input type="text" id="label" name="label" required />
           </div>
 
@@ -29,20 +30,13 @@ export function AddIdentity() {
           </div>
 
           <div className="form-group">
-            <label htmlFor="certificate">Certificate File</label>
-            <input
-              type="file"
-              id="certificate"
-              name="certificate"
-              accept=".pem, .crt"
-              onChange={handleCertificateChange}
-              required
+            <label>Certificate File</label>
+            <DropZone
+              accept=".pem,.crt"
+              fileName={certificateFileName}
+              onChange={handleCertificateFile}
+              placeholder="Drop .pem or .crt here, or click to browse"
             />
-            {certificateFileContent && (
-              <p className="text-sm text-gray-500 mt-1">
-                Certificate file uploaded.
-              </p>
-            )}
           </div>
 
           <div className="form-group">
@@ -51,9 +45,7 @@ export function AddIdentity() {
           </div>
 
           {errorMessage && (
-            <div className="error-message">
-              <p className="text-red-500">{errorMessage}</p>
-            </div>
+            <div className="error-message">{errorMessage}</div>
           )}
 
           <div className="form-actions">
