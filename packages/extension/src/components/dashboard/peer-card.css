@@ -86,38 +86,3 @@
   border-color: var(--danger) !important;
 }
 
-/* Delete confirmation overlay */
-.confirmation-overlay {
-  position: fixed;
-  inset: 0;
-  background-color: rgba(0, 0, 0, 0.7);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 100;
-  animation: modal-fade-in 0.15s ease;
-}
-
-.confirmation-dialog {
-  background-color: var(--bg-elevated);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  padding: var(--space-5);
-  text-align: center;
-  max-width: 280px;
-  width: 90%;
-}
-
-.confirmation-dialog p {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  margin-bottom: var(--space-4);
-  line-height: 1.5;
-}
-
-.confirmation-buttons {
-  display: flex;
-  gap: var(--space-2);
-  justify-content: center;
-}
