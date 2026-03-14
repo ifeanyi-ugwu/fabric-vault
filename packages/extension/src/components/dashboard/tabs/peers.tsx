@@ -40,11 +40,8 @@ export function Peers() {
           <Modal.Content>
             <Modal.Header>Add New Peer</Modal.Header>
             <Modal.Body>
-              <AddPeerForm onSubmit={handleAddPeer} />
+              <AddPeerForm onSubmit={handleAddPeer} onCancel={() => setIsAddModalOpen(false)} />
             </Modal.Body>
-            <Modal.Footer>
-              <Modal.CloseButton>Cancel</Modal.CloseButton>
-            </Modal.Footer>
           </Modal.Content>
         </Modal>
       </div>
@@ -75,9 +72,10 @@ export function Peers() {
 
 interface AddPeerFormProps {
   onSubmit: (newPeerData: Partial<Peer>) => void
+  onCancel: () => void
 }
 
-const AddPeerForm = ({ onSubmit }: AddPeerFormProps) => {
+const AddPeerForm = ({ onSubmit, onCancel }: AddPeerFormProps) => {
   const [peerName, setPeerName] = useState("")
   const [peerEndpoint, setPeerEndpoint] = useState("")
   const [rpcUrl, setRpcUrl] = useState("")
@@ -159,9 +157,10 @@ const AddPeerForm = ({ onSubmit }: AddPeerFormProps) => {
         />
       </div>
 
-      <Button type="submit" fullWidth>
-        Add Peer
-      </Button>
+      <div className="form-actions">
+        <Button variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button type="submit">Add Peer</Button>
+      </div>
     </form>
   )
 }
