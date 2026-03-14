@@ -29,6 +29,9 @@ dist/
 # turbo
 .turbo/
 
+# vitepress
+**/.vitepress/cache/
+
 # plasmo
 .plasmo
 
