@@ -15,6 +15,7 @@
     }
   },
   "bin": {
+    "gateway": "./dist/main.js",
     "fabric-gateway": "./dist/main.js",
     "hfgateway": "./dist/main.js",
     "hyperledger-fabric-json-rpc-gateway": "./dist/main.js"
