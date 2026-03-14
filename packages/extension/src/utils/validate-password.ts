@@ -1,4 +1,9 @@
 export function validatePassword(password: string) {
+  // Skip all rules in development so testing doesn't require a fully-formed password
+  if (process.env.NODE_ENV === "development") {
+    return { isValid: true, errors: [] }
+  }
+
   const errors: string[] = []
 
   if (password.length < 8) {
@@ -32,4 +37,6 @@ export const passwordRequirements = [
 ]
 
 export const passwordHint =
-  "Use at least 8 characters, including uppercase and lowercase letters, a number, and a special character."
+  process.env.NODE_ENV === "development"
+    ? "Dev mode: any password is accepted."
+    : "Use at least 8 characters, including uppercase and lowercase letters, a number, and a special character."
