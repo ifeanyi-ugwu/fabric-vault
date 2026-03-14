@@ -8,6 +8,7 @@ export default defineConfig({
     nav: [
       { text: "Guide", link: "/guide/" },
       { text: "Examples", link: "/guide/examples" },
+      { text: "Privacy Policy", link: "/privacy-policy" },
     ],
     sidebar: [
       {
