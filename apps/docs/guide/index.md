@@ -35,5 +35,6 @@ The JSON-RPC gateway bridges your dApp to a live Fabric network:
 npx @fabric-vault/gateway
 ```
 
-Set `PEER_ENDPOINT`, `MSP_ID`, `TLS_CERT_PATH`, and `SIGN_CERT_PATH`
-environment variables before starting the gateway.
+The gateway starts on port `7545` by default. Override with `PORT` if needed.
+Peer and identity details are supplied per-request by the extension — no
+upfront configuration is required.
