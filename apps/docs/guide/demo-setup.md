@@ -47,7 +47,7 @@ Your network must be running and accessible from the browser's host machine. The
 
 The gateway bridges the browser to your Fabric peers. See the [Getting Started guide](./index.md) for setup instructions.
 
-> The demo pages must be served over HTTP or HTTPS — the extension's injected API is not available on `file://` pages.
+> The demo pages must be served over HTTP or HTTPS — the extension's injected API is not available on `file://` pages. If running from a local clone, serve the `public/examples/` directory with any HTTP server, e.g. `python -m http.server 8000`, then open `http://localhost:8000/test2.html`.
 
 ---
 

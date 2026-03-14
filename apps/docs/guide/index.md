@@ -36,5 +36,4 @@ npx @fabric-vault/gateway
 ```
 
 Set `PEER_ENDPOINT`, `MSP_ID`, `TLS_CERT_PATH`, and `SIGN_CERT_PATH`
-environment variables as described in the
-[gateway README](../../packages/gateway/README.md).
+environment variables before starting the gateway.
