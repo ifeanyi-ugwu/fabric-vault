@@ -13,7 +13,6 @@ export interface ButtonProps
     | "ghost"
   size?: "small" | "medium" | "large" | "icon"
   fullWidth?: boolean
-  onClick?: () => void
   type?: "button" | "submit" | "reset"
   disabled?: boolean
   className?: string
