@@ -9,7 +9,8 @@ import {
   wallet
 } from "~background/state"
 import type { Identity } from "~contexts/identity"
-import { setSessionData } from "~lib/storage"
+import type { Peer } from "~contexts/peer"
+import { sessionStore } from "~lib/storage"
 import { getStoredConnections } from "~services/connection"
 import { handleSignRequest } from "~services/wallet"
 
@@ -26,8 +27,8 @@ async function isConnectedToIdentity(
 }
 
 async function getActiveIdentityLabel(): Promise<string | null> {
-  const result = await browser.storage.local.get(["selectedIdentity"])
-  return result.selectedIdentity?.label || null
+  const identity = (await browser.storage.local.get("selectedIdentity"))["selectedIdentity"] as Identity | undefined
+  return identity?.label || null
 }
 
 async function determineAndValidateIdentity({
@@ -62,9 +63,7 @@ async function determineAndValidateIdentity({
     }
   } else {
     // If no identity explicitly provided by dApp, use the currently active one
-    const activeIdentityPublicInfo = (
-      await browser.storage.local.get("selectedIdentity")
-    ).selectedIdentity
+    const activeIdentityPublicInfo = (await browser.storage.local.get("selectedIdentity"))["selectedIdentity"] as Identity | undefined
     if (activeIdentityPublicInfo) {
       identityToUseForConnection.label = activeIdentityPublicInfo.label
       identityToUseForConnection.mspId = activeIdentityPublicInfo.mspId
@@ -114,9 +113,7 @@ async function openAuthorizationPopup(
   }
 
   // Save request for the popup to consume
-  await setSessionData({
-    [`pendingRequest_${id}`]: { id, payload: message, type, origin }
-  })
+  await sessionStore.set(`pendingRequest_${id}`, { id, payload: message, type, origin })
 
   browser.windows.create({
     url: browser.runtime.getURL(`popup.html?requestId=${id}`),
@@ -217,8 +214,7 @@ async function handleSubscriptionRequest(
     origin
   })
 
-  const selectedPeer = (await browser.storage.local.get("selectedPeer"))
-    .selectedPeer
+  const selectedPeer = (await browser.storage.local.get("selectedPeer"))["selectedPeer"] as Peer | undefined
   if (!selectedPeer || !selectedPeer.rpcUrl) {
     throw new Error(
       "No peer selected or peer RPC URL missing for subscription."

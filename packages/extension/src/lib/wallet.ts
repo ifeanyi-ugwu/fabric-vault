@@ -52,8 +52,7 @@ export class Wallet {
 
   async get(label: string): Promise<Identity | undefined> {
     const key = this.identityStorageKey(label)
-    const result = await browser.storage.local.get(key)
-    const publicStr = result[key]
+    const publicStr = (await browser.storage.local.get(key))[key]
     if (!publicStr) {
       return
     }
@@ -154,10 +153,7 @@ export class Wallet {
 
     // If the index needed updating (i.e., certHashToRemove was found and index was modified)
     if (updatedIndex) {
-      const obj: Record<string, string> = {
-        [this.certificateIndexKey]: JSON.stringify(updatedIndex)
-      }
-      await browser.storage.local.set(obj)
+      await browser.storage.local.set({ [this.certificateIndexKey]: JSON.stringify(updatedIndex) })
     }
     // Note: If updatedIndex was undefined, it means no index update was needed (identity not found, or no cert).
   }
@@ -171,9 +167,8 @@ export class Wallet {
   }
 
   private async getPrivateKey(label: string): Promise<string | undefined> {
-    const privateKeyEncryptedStr = (
-      await browser.storage.local.get(this.identityPrivateKeyStorageKey(label))
-    )[this.identityPrivateKeyStorageKey(label)]
+    const key = this.identityPrivateKeyStorageKey(label)
+    const privateKeyEncryptedStr = (await browser.storage.local.get(key))[key]
     if (!privateKeyEncryptedStr) {
       console.warn(`No encrypted private key found for identity '${label}'.`)
       return

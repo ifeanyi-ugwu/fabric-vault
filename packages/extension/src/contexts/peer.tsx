@@ -44,15 +44,16 @@ export function PeerProvider({ children }: { children: ReactNode }) {
   const [peers, setPeers] = useState<Peer[]>([])
 
   useEffect(() => {
-    browser.storage.local.get([availablePeersStorageKey]).then((result) => {
+    browser.storage.local.get(availablePeersStorageKey).then((result) => {
       const storedPeers = result[availablePeersStorageKey] as Peer[] | undefined
       setPeers(storedPeers || [])
     })
   }, [])
 
   useEffect(() => {
-    browser.storage.local.get([selectedPeerStorageKey]).then((result) => {
-      const storedPeerId = result[selectedPeerStorageKey]?.id
+    browser.storage.local.get(selectedPeerStorageKey).then((result) => {
+      const storedPeer = result[selectedPeerStorageKey] as Peer | undefined
+      const storedPeerId = storedPeer?.id
       if (storedPeerId && peers.length > 0) {
         const initialSelected = peers.find((peer) => peer.id === storedPeerId)
         setSelectedPeer(initialSelected || null)

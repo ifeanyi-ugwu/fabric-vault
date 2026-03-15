@@ -1,27 +1,18 @@
 import { cryptoManager } from "~background/state"
 import { SESSION_KEYS } from "~constants"
-import { getSessionData } from "~lib/storage"
+import { sessionStore } from "~lib/storage"
 
 export const getSessionUnlockStatus = async (): Promise<boolean> => {
-  const result = await getSessionData(SESSION_KEYS.WALLET_UNLOCKED)
-  return result[SESSION_KEYS.WALLET_UNLOCKED] === true
+  return (await sessionStore.get(SESSION_KEYS.WALLET_UNLOCKED)) === true
 }
 
 export const restoreCryptoManagerFromSession = async (): Promise<boolean> => {
   try {
-    const sessionData = await getSessionData([
-      SESSION_KEYS.DERIVED_KEY,
-      SESSION_KEYS.SALT
-    ])
+    const derivedKey = await sessionStore.get(SESSION_KEYS.DERIVED_KEY)
+    const salt = await sessionStore.get(SESSION_KEYS.SALT)
 
-    if (
-      sessionData[SESSION_KEYS.DERIVED_KEY] &&
-      sessionData[SESSION_KEYS.SALT]
-    ) {
-      await cryptoManager.restoreKey(
-        sessionData[SESSION_KEYS.DERIVED_KEY],
-        sessionData[SESSION_KEYS.SALT]
-      )
+    if (derivedKey && salt) {
+      await cryptoManager.restoreKey(derivedKey, salt)
       return true
     }
     return false

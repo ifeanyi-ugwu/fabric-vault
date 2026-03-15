@@ -7,8 +7,7 @@ export async function getStoredConnections(): Promise<
   Map<string, SiteIdentityConnection[]>
 > {
   try {
-    const result = await browser.storage.local.get("fabricVaultConnections")
-    const storedConnections = result.fabricVaultConnections
+    const storedConnections = (await browser.storage.local.get("fabricVaultConnections"))["fabricVaultConnections"] as string | undefined
     if (storedConnections) {
       return new Map(Object.entries(JSON.parse(storedConnections)))
     }

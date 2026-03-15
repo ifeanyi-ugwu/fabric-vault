@@ -2,6 +2,7 @@ import browser from "webextension-polyfill"
 
 import { pendingRequestResolvers } from "~background/state"
 import type { SiteIdentityConnection } from "~hooks/use-identity-to-site-connection"
+import type { Peer } from "~contexts/peer"
 import { emitEventToDapp, getStoredConnections } from "~services/connection"
 
 async function storeConnection(origin: string, labels: string[]) {
@@ -22,9 +23,7 @@ async function storeConnection(origin: string, labels: string[]) {
   ])
 
   const connectionsObject = Object.fromEntries(storedConnections)
-  await browser.storage.local.set({
-    fabricVaultConnections: JSON.stringify(connectionsObject)
-  })
+  await browser.storage.local.set({ fabricVaultConnections: JSON.stringify(connectionsObject) })
 }
 
 export const handleConnectionMessage = async (request: any, _sender: any) => {
@@ -51,8 +50,7 @@ export const handleConnectionMessage = async (request: any, _sender: any) => {
           )
         }
 
-        const peer = (await browser.storage.local.get(["selectedPeer"]))
-          .selectedPeer
+        const peer = (await browser.storage.local.get("selectedPeer"))["selectedPeer"] as Peer | undefined
         await emitEventToDapp({
           type: "connect",
           result: {

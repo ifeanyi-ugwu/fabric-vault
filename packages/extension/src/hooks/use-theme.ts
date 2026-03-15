@@ -11,10 +11,11 @@ export function useTheme() {
   const [theme, setTheme] = useState<Theme>("dark")
 
   useEffect(() => {
-    browser.storage.local.get(["theme"]).then((result) => {
-      const saved = (result.theme as Theme) ?? "dark"
-      applyTheme(saved)
-      setTheme(saved)
+    browser.storage.local.get("theme").then((result) => {
+      const saved = result["theme"] as Theme | undefined
+      const theme = saved ?? "dark"
+      applyTheme(theme)
+      setTheme(theme)
     })
   }, [])
 

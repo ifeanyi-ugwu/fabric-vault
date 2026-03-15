@@ -68,8 +68,8 @@ export const IdentityProvider = ({ children }) => {
   }, [isUnlocked, isInitialized])
 
   useEffect(() => {
-    browser.storage.local.get([storageKey]).then((result) => {
-      const storedActiveIdentity = result[storageKey]
+    browser.storage.local.get(storageKey).then((result) => {
+      const storedActiveIdentity = result[storageKey] as Identity | undefined
       if (storedActiveIdentity) {
         const initialSelected = identities.find(
           (identity) => identity.label === storedActiveIdentity.label

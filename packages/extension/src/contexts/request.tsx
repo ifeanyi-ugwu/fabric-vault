@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react"
 
-import { getSessionData } from "~lib/storage"
+import { sessionStore } from "~lib/storage"
 
 export interface RequestData {
   id: string
@@ -32,8 +32,7 @@ export function RequestProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    getSessionData(`pendingRequest_${id}`).then((result) => {
-      const storedRequest = result[`pendingRequest_${id}`]
+    sessionStore.get(`pendingRequest_${id}`).then((storedRequest) => {
       if (storedRequest) {
         setRequest(storedRequest)
       } else {

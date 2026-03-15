@@ -38,8 +38,7 @@ export function useIdentityToSiteConnection() {
     }
 
     const loadConnectionsFromStorage = async () => {
-      const result = await browser.storage.local.get("fabricVaultConnections")
-      const storedConnections = result.fabricVaultConnections
+      const storedConnections = (await browser.storage.local.get("fabricVaultConnections"))["fabricVaultConnections"] as string | undefined
       if (storedConnections) {
         try {
           const parsedConnections = JSON.parse(storedConnections) as Record<
@@ -124,9 +123,7 @@ export function useIdentityToSiteConnection() {
       setConnectedSites(newConnectedSites)
 
       const connectionsObject = Object.fromEntries(newConnectedSites)
-      await browser.storage.local.set({
-        fabricVaultConnections: JSON.stringify(connectionsObject)
-      })
+      await browser.storage.local.set({ fabricVaultConnections: JSON.stringify(connectionsObject) })
     },
     [currentHostname, connectedSites]
   )

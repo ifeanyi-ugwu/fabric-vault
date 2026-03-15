@@ -1,13 +1,9 @@
+import browser from "webextension-polyfill"
+
 import { cryptoManager, wallet } from "~background/state"
 import { SESSION_KEYS, STORAGE_KEYS } from "~constants"
 import { CryptoManager } from "~lib/crypto"
-import {
-  clearSessionData,
-  getLocalData,
-  removeLocalData,
-  setLocalData,
-  setSessionData
-} from "~lib/storage"
+import { sessionStore } from "~lib/storage"
 import { Wallet, type PrivateIdentity } from "~lib/wallet"
 
 import {
@@ -20,9 +16,9 @@ export const handleUnlock = async (password: string) => {
   //TODO: accept the current password as an arg and check that it is valid before going on with the password change
   // Check if wallet is unlocked via session
   try {
-    const storedSalt = (await getLocalData(STORAGE_KEYS.FABRIC_WALLET_SALT))[
-      STORAGE_KEYS.FABRIC_WALLET_SALT
-    ]
+    const storedSalt = (
+      await browser.storage.local.get(STORAGE_KEYS.FABRIC_WALLET_SALT)
+    )[STORAGE_KEYS.FABRIC_WALLET_SALT]
     if (!storedSalt) {
       throw new Error(
         "No salt found. Wallet might not be initialized correctly."
@@ -31,7 +27,7 @@ export const handleUnlock = async (password: string) => {
 
     const { key } = await cryptoManager.deriveKey(password, storedSalt)
     const verificationToken = (
-      await getLocalData(STORAGE_KEYS.VERIFICATION_TOKEN)
+      await browser.storage.local.get(STORAGE_KEYS.VERIFICATION_TOKEN)
     )[STORAGE_KEYS.VERIFICATION_TOKEN]
 
     try {
@@ -40,11 +36,9 @@ export const handleUnlock = async (password: string) => {
       throw new Error("Invalid password.")
     }
 
-    await setSessionData({
-      [SESSION_KEYS.WALLET_UNLOCKED]: true,
-      [SESSION_KEYS.DERIVED_KEY]: key,
-      [SESSION_KEYS.SALT]: storedSalt
-    })
+    await sessionStore.set(SESSION_KEYS.WALLET_UNLOCKED, true)
+    await sessionStore.set(SESSION_KEYS.DERIVED_KEY, key)
+    await sessionStore.set(SESSION_KEYS.SALT, storedSalt)
 
     return { success: true }
   } catch (error) {
@@ -53,7 +47,7 @@ export const handleUnlock = async (password: string) => {
 }
 
 export const handleLock = async () => {
-  await clearSessionData()
+  await sessionStore.clear()
   cryptoManager.clearKey()
   return { success: true }
 }
@@ -65,7 +59,7 @@ export const getUnlockedStatus = async () => {
     const restored = await restoreCryptoManagerFromSession()
     if (!restored) {
       // Session corrupted, clear it
-      await clearSessionData()
+      await sessionStore.clear()
       return { isUnlocked: false }
     }
   }
@@ -75,11 +69,11 @@ export const getUnlockedStatus = async () => {
 export const handleCreateVault = async (password: string) => {
   try {
     // Clear old salt, verification token and session
-    await removeLocalData([
+    await browser.storage.local.remove([
       STORAGE_KEYS.FABRIC_WALLET_SALT,
       STORAGE_KEYS.VERIFICATION_TOKEN
     ])
-    await clearSessionData()
+    await sessionStore.clear()
 
     // Remove existing wallets identities
     const existingLabels = await wallet.list()
@@ -88,11 +82,13 @@ export const handleCreateVault = async (password: string) => {
 
     // Set new salt and derive new encryption key
     const { salt } = await cryptoManager.deriveKey(password)
-    await setLocalData({ [STORAGE_KEYS.FABRIC_WALLET_SALT]: salt })
+    await browser.storage.local.set({ [STORAGE_KEYS.FABRIC_WALLET_SALT]: salt })
 
     // Encrypt a new verification token
     const verificationToken = await cryptoManager.encrypt("LOCKED")
-    await setLocalData({ [STORAGE_KEYS.VERIFICATION_TOKEN]: verificationToken })
+    await browser.storage.local.set({
+      [STORAGE_KEYS.VERIFICATION_TOKEN]: verificationToken
+    })
 
     return { success: true }
   } catch (error) {
@@ -132,18 +128,20 @@ export const handleChangePassword = async (newPassword: string) => {
     await Promise.all(reEncryptPromises)
 
     // Store the new salt in local storage
-    await setLocalData({ [STORAGE_KEYS.FABRIC_WALLET_SALT]: newSalt })
+    await browser.storage.local.set({
+      [STORAGE_KEYS.FABRIC_WALLET_SALT]: newSalt
+    })
 
     // Create new verification token with the new key
     const verificationToken = await newCryptoManager.encrypt("LOCKED")
-    await setLocalData({ [STORAGE_KEYS.VERIFICATION_TOKEN]: verificationToken })
+    await browser.storage.local.set({
+      [STORAGE_KEYS.VERIFICATION_TOKEN]: verificationToken
+    })
 
     // Update session with new key
-    await setSessionData({
-      [SESSION_KEYS.WALLET_UNLOCKED]: true,
-      [SESSION_KEYS.DERIVED_KEY]: newKey,
-      [SESSION_KEYS.SALT]: newSalt
-    })
+    await sessionStore.set(SESSION_KEYS.WALLET_UNLOCKED, true)
+    await sessionStore.set(SESSION_KEYS.DERIVED_KEY, newKey)
+    await sessionStore.set(SESSION_KEYS.SALT, newSalt)
 
     // Replace the global crypto manager instance/ switch to new crypto manager
     cryptoManager.clearKey()
@@ -156,6 +154,6 @@ export const handleChangePassword = async (newPassword: string) => {
 }
 
 export const hasVault = async () => {
-  const result = await getLocalData(STORAGE_KEYS.VERIFICATION_TOKEN)
+  const result = await browser.storage.local.get(STORAGE_KEYS.VERIFICATION_TOKEN)
   return !!result[STORAGE_KEYS.VERIFICATION_TOKEN]
 }
