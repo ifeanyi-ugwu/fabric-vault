@@ -1,3 +1,5 @@
+import browser from "webextension-polyfill"
+
 import { pendingRequestResolvers } from "~background/state"
 import type { SiteIdentityConnection } from "~hooks/use-identity-to-site-connection"
 import { emitEventToDapp, getStoredConnections } from "~services/connection"
@@ -20,19 +22,15 @@ async function storeConnection(origin: string, labels: string[]) {
   ])
 
   const connectionsObject = Object.fromEntries(storedConnections)
-  await chrome.storage.local.set({
+  await browser.storage.local.set({
     fabricVaultConnections: JSON.stringify(connectionsObject)
   })
 }
 
-export const handleConnectionMessage = async (
-  message: any,
-  sender: any,
-  sendResponse: any
-) => {
-  switch (message.type) {
-    case "APPROVE_CONNECTION_REQUEST":
-      const { id, payload } = message
+export const handleConnectionMessage = async (request: any, _sender: any) => {
+  switch (request.type) {
+    case "APPROVE_CONNECTION_REQUEST": {
+      const { id, payload } = request
       const { origin } = payload
       const resolver = pendingRequestResolvers.get(id)
       const identities = payload.identities.map((id) => ({
@@ -44,7 +42,7 @@ export const handleConnectionMessage = async (
       if (resolver) {
         resolver.resolve(identities)
         pendingRequestResolvers.delete(id)
-        chrome.storage.local.remove(`pendingRequest_${id}`)
+        browser.storage.local.remove(`pendingRequest_${id}`)
 
         if (origin && Array.isArray(payload.identities)) {
           await storeConnection(
@@ -53,7 +51,7 @@ export const handleConnectionMessage = async (
           )
         }
 
-        const peer = (await chrome.storage.local.get(["selectedPeer"]))
+        const peer = (await browser.storage.local.get(["selectedPeer"]))
           .selectedPeer
         await emitEventToDapp({
           type: "connect",
@@ -63,32 +61,30 @@ export const handleConnectionMessage = async (
         })
       }
 
-      sendResponse({ success: true })
-      return true
+      return { success: true }
+    }
 
-    case "REJECT_CONNECTION_REQUEST":
-      const rejectionResolver = pendingRequestResolvers.get(message.id)
-      if (rejectionResolver) {
-        rejectionResolver.reject(
-          new Error("User rejected the connection request")
-        )
-        pendingRequestResolvers.delete(message.id)
-        chrome.storage.local.remove(`pendingRequest_${message.id}`)
+    case "REJECT_CONNECTION_REQUEST": {
+      const resolver = pendingRequestResolvers.get(request.id)
+      if (resolver) {
+        resolver.reject(new Error("User rejected the connection request"))
+        pendingRequestResolvers.delete(request.id)
+        browser.storage.local.remove(`pendingRequest_${request.id}`)
       }
-      sendResponse({ success: true })
-      return true
+      return { success: true }
+    }
 
-    case "REJECT_SIGN_REQUEST":
-      const signRejectionResolver = pendingRequestResolvers.get(message.id)
-      if (signRejectionResolver) {
-        signRejectionResolver.reject(new Error("User rejected the request"))
-        pendingRequestResolvers.delete(message.id)
-        chrome.storage.local.remove(`pendingRequest_${message.id}`)
+    case "REJECT_SIGN_REQUEST": {
+      const resolver = pendingRequestResolvers.get(request.id)
+      if (resolver) {
+        resolver.reject(new Error("User rejected the request"))
+        pendingRequestResolvers.delete(request.id)
+        browser.storage.local.remove(`pendingRequest_${request.id}`)
       }
-      sendResponse({ success: true })
-      return true
+      return { success: true }
+    }
 
     default:
-      return false
+      return undefined
   }
 }

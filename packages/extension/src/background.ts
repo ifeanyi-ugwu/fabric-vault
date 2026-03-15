@@ -1,13 +1,9 @@
+import browser from "webextension-polyfill"
+
 import { handleConnectionMessage } from "~handlers/connection"
 import { handlePortConnection } from "~handlers/port"
 import { handleVaultMessage } from "~handlers/vault"
 import { handleWalletMessage } from "~handlers/wallet"
-
-/**
- * Vault/Wallet session management using chrome.storage.session
- * This approach keeps the wallet unlocked for the browser session without needing to keep the service worker alive
- * Important: Vault/Wallet must be unlocked to perform any operation involving user identity
- */
 
 /**
  * Keep service worker alive to maintain WebSocket connections for dApp subscriptions.
@@ -20,39 +16,29 @@ import { handleWalletMessage } from "~handlers/wallet"
 
 const KEEP_ALIVE_INTERVAL = 25 * 1000 // 25 seconds
 
-const keepAlive = setInterval(() => {
-  chrome.runtime.getPlatformInfo(() => {
-    if (chrome.runtime.lastError) {
-      //console.log("Keep alive ping error:", chrome.runtime.lastError)
-    } else {
-      //console.log("Keep alive ping successful")
-    }
-  })
+const keepAlive = setInterval(async () => {
+  try {
+    await browser.runtime.getPlatformInfo()
+  } catch (_) {}
 }, KEEP_ALIVE_INTERVAL)
 
 self.addEventListener("beforeunload", () => {
   clearInterval(keepAlive)
 })
 
-const messageRouter = async (request: any, sender: any, sendResponse: any) => {
-  // Try vault handlers first
-  const vaultHandled = await handleVaultMessage(request, sender, sendResponse)
-  if (vaultHandled) return true
+// Returns the response value directly so webextension-polyfill can send it back
+// to the caller. The sendResponse callback pattern is incompatible with async
+// listeners — the polyfill uses the Promise's resolved value as the response.
+const messageRouter = async (request: any, sender: any) => {
+  const vaultResult = await handleVaultMessage(request, sender)
+  if (vaultResult !== undefined) return vaultResult
 
-  // Then try wallet handlers
-  const walletHandled = await handleWalletMessage(request, sender, sendResponse)
-  if (walletHandled) return true
+  const walletResult = await handleWalletMessage(request, sender)
+  if (walletResult !== undefined) return walletResult
 
-  // Then try connection handlers
-  const connectionHandled = await handleConnectionMessage(
-    request,
-    sender,
-    sendResponse
-  )
-  if (connectionHandled) return true
-
-  return false
+  const connectionResult = await handleConnectionMessage(request, sender)
+  if (connectionResult !== undefined) return connectionResult
 }
 
-chrome.runtime.onMessage.addListener(messageRouter)
-chrome.runtime.onConnect.addListener(handlePortConnection)
+browser.runtime.onMessage.addListener(messageRouter)
+browser.runtime.onConnect.addListener(handlePortConnection)

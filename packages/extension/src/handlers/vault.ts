@@ -1,5 +1,4 @@
 import { emitEventToDapp } from "~services/connection"
-import { ensureWalletReady } from "~services/session"
 import {
   getUnlockedStatus,
   handleChangePassword,
@@ -9,52 +8,36 @@ import {
   hasVault
 } from "~services/vault"
 
-export const handleVaultMessage = async (
-  request: any,
-  sender: any,
-  sendResponse: any
-) => {
+export const handleVaultMessage = async (request: any, _sender: any) => {
   switch (request.type) {
-    case "UNLOCK_REQUEST": {
-      const result = await handleUnlock(request.payload.password)
-      sendResponse(result)
-      return true
-    }
-    case "LOCK_REQUEST": {
-      const result = await handleLock()
-      sendResponse(result)
-      return true
-    }
-    case "GET_UNLOCKED_STATUS": {
-      const result = await getUnlockedStatus()
-      sendResponse(result)
-      return true
-    }
+    case "UNLOCK_REQUEST":
+      return handleUnlock(request.payload.password)
+
+    case "LOCK_REQUEST":
+      return handleLock()
+
+    case "GET_UNLOCKED_STATUS":
+      return getUnlockedStatus()
+
     case "HAS_VAULT_REQUEST": {
       const hasVaultResult = await hasVault()
-      sendResponse({ hasVault: hasVaultResult })
-      return true
+      return { hasVault: hasVaultResult }
     }
-    case "CREATE_VAULT_REQUEST": {
-      const result = await handleCreateVault(request.payload.password)
-      sendResponse(result)
-      return true
-    }
-    case "CHANGE_PASSWORD_REQUEST": {
-      const { newPassword } = request.payload
-      const result = await handleChangePassword(newPassword)
-      sendResponse(result)
-      return true
-    }
-    case "EVENT_REQUEST": {
+
+    case "CREATE_VAULT_REQUEST":
+      return handleCreateVault(request.payload.password)
+
+    case "CHANGE_PASSWORD_REQUEST":
+      return handleChangePassword(request.payload.newPassword)
+
+    case "EVENT_REQUEST":
       await emitEventToDapp({
         type: request.payload.event,
         result: request.payload.data || null
       })
-      sendResponse({ success: true })
-      return true
-    }
+      return { success: true }
+
     default:
-      return false
+      return undefined
   }
 }
