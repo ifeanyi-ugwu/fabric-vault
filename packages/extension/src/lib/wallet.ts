@@ -1,3 +1,5 @@
+import browser from "webextension-polyfill"
+
 import type { Identity } from "~/contexts/identity"
 
 import { CryptoManager } from "./crypto"
@@ -40,7 +42,7 @@ export class Wallet {
    */
   private async getCertificateIndex(): Promise<Record<string, string>> {
     try {
-      const result = await chrome.storage.local.get(this.certificateIndexKey)
+      const result = await browser.storage.local.get(this.certificateIndexKey)
       return JSON.parse(result[this.certificateIndexKey] || "{}")
     } catch (e) {
       console.error("Error parsing certificate index, returning empty:", e)
@@ -50,7 +52,7 @@ export class Wallet {
 
   async get(label: string): Promise<Identity | undefined> {
     const key = this.identityStorageKey(label)
-    const result = await chrome.storage.local.get(key)
+    const result = await browser.storage.local.get(key)
     const publicStr = result[key]
     if (!publicStr) {
       return
@@ -114,7 +116,7 @@ export class Wallet {
     storagePayload[this.certificateIndexKey] = JSON.stringify(index)
 
     // Perform a single, atomic set operation for all changes
-    await chrome.storage.local.set(storagePayload)
+    await browser.storage.local.set(storagePayload)
   }
 
   async remove(label: string): Promise<void> {
@@ -148,20 +150,20 @@ export class Wallet {
     const privateKeyKey = this.identityPrivateKeyStorageKey(label)
     const keysToRemove = [publicIdentityKey, privateKeyKey]
 
-    await chrome.storage.local.remove(keysToRemove)
+    await browser.storage.local.remove(keysToRemove)
 
     // If the index needed updating (i.e., certHashToRemove was found and index was modified)
     if (updatedIndex) {
       const obj: Record<string, string> = {
         [this.certificateIndexKey]: JSON.stringify(updatedIndex)
       }
-      await chrome.storage.local.set(obj)
+      await browser.storage.local.set(obj)
     }
     // Note: If updatedIndex was undefined, it means no index update was needed (identity not found, or no cert).
   }
 
   async list(): Promise<string[]> {
-    const items = await chrome.storage.local.get(null)
+    const items = await browser.storage.local.get(null)
     const keys = Object.keys(items).filter((k) =>
       k.startsWith(this.identityStorageKeyPrefix)
     )
@@ -170,7 +172,7 @@ export class Wallet {
 
   private async getPrivateKey(label: string): Promise<string | undefined> {
     const privateKeyEncryptedStr = (
-      await chrome.storage.local.get(this.identityPrivateKeyStorageKey(label))
+      await browser.storage.local.get(this.identityPrivateKeyStorageKey(label))
     )[this.identityPrivateKeyStorageKey(label)]
     if (!privateKeyEncryptedStr) {
       console.warn(`No encrypted private key found for identity '${label}'.`)

@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react"
 
+import { getSessionData } from "~lib/storage"
+
 export interface RequestData {
   id: string
   type: "sign" | "connect"
@@ -30,7 +32,7 @@ export function RequestProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    chrome.storage.session.get(`pendingRequest_${id}`).then((result) => {
+    getSessionData(`pendingRequest_${id}`).then((result) => {
       const storedRequest = result[`pendingRequest_${id}`]
       if (storedRequest) {
         setRequest(storedRequest)

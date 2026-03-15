@@ -1,4 +1,5 @@
 import { useState } from "react"
+import browser from "webextension-polyfill"
 
 import { Button } from "~/components/ui/button"
 import { useIdentity } from "~contexts/identity"
@@ -36,7 +37,7 @@ export function ConnectRequest() {
     if (!selectedIdentity) return
     try {
       setIsSubmitting(true)
-      await chrome.runtime.sendMessage({
+      await browser.runtime.sendMessage({
         type: "APPROVE_CONNECTION_REQUEST",
         id: request.id,
         payload: { identities: [selectedIdentity], origin: request.origin }
@@ -51,7 +52,7 @@ export function ConnectRequest() {
   const handleReject = async () => {
     try {
       setIsSubmitting(true)
-      await chrome.runtime.sendMessage({
+      await browser.runtime.sendMessage({
         type: "REJECT_CONNECTION_REQUEST",
         id: request.id
       })

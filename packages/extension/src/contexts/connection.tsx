@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useState
 } from "react"
+import browser from "webextension-polyfill"
 
 interface ConnectedSite {
   origin: string
@@ -28,89 +29,32 @@ export function ConnectionProvider({ children }) {
     boolean | null
   >(null)
 
-  // Fetch saved connections from local storage
-  /*useEffect(() => {
-    chrome.storage.local.get(null, (data) => {
-      const savedSites = Object.keys(data).map((origin) => ({
-        origin,
-        connected: data[origin]
-      }))
-      setConnectedSites(savedSites)
-    })
-  }, [])
-
-  // Check if the current site is connected
-  useEffect(() => {
-    const currentOrigin = window.location.origin
-    const site = connectedSites.find((site) => site.origin === currentOrigin)
-    if (site) {
-      setIsCurrentSiteConnected(site.connected)
-    } else {
-      setIsCurrentSiteConnected(false) // Not connected yet
-    }
-  }, [connectedSites])
-
-  const connectSite = () => {
-    const currentOrigin = window.location.origin
-    const updatedSites = [
-      ...connectedSites,
-      { origin: currentOrigin, connected: true }
-    ]
-    setConnectedSites(updatedSites)
-    chrome.storage.local.set({
-      ...chrome.storage.local.get(),
-      [currentOrigin]: true
-    })
-    setIsCurrentSiteConnected(true)
-  }
-
-  const disconnectSite = () => {
-    const currentOrigin = window.location.origin
-    const updatedSites = connectedSites.filter(
-      (site) => site.origin !== currentOrigin
-    )
-    setConnectedSites(updatedSites)
-    chrome.storage.local.remove(currentOrigin)
-    setIsCurrentSiteConnected(false)
-  }*/
   const currentOrigin = window.location.origin
 
-  // Sync connected sites from chrome storage
-  /*const loadConnections = () => {
-    chrome.storage.local.get(null, (data) => {
-      const sites = Object.entries(data).map(([origin, connected]) => ({
-        origin,
-        connected: Boolean(connected)
-      }))
-      setConnectedSites(sites)
+  const loadConnections = useCallback(async () => {
+    const data = await browser.storage.local.get(null)
+    const sites = Object.entries(data).map(([origin, connected]) => ({
+      origin,
+      connected: Boolean(connected)
+    }))
+    setConnectedSites(sites)
 
-      const thisSite = sites.find((site) => site.origin === currentOrigin)
-      setIsCurrentSiteConnected(thisSite?.connected ?? false)
-    })
-  }*/
-  const loadConnections = useCallback(() => {
-    chrome.storage.local.get(null, (data) => {
-      const sites = Object.entries(data).map(([origin, connected]) => ({
-        origin,
-        connected: Boolean(connected)
-      }))
-      setConnectedSites(sites)
-
-      const thisSite = sites.find((site) => site.origin === currentOrigin)
-      setIsCurrentSiteConnected(thisSite?.connected ?? false)
-    })
+    const thisSite = sites.find((site) => site.origin === currentOrigin)
+    setIsCurrentSiteConnected(thisSite?.connected ?? false)
   }, [currentOrigin])
 
   useEffect(() => {
     loadConnections()
   }, [])
 
-  const connectSite = () => {
-    chrome.storage.local.set({ [currentOrigin]: true }, loadConnections)
+  const connectSite = async () => {
+    await browser.storage.local.set({ [currentOrigin]: true })
+    loadConnections()
   }
 
-  const disconnectSite = () => {
-    chrome.storage.local.remove(currentOrigin, loadConnections)
+  const disconnectSite = async () => {
+    await browser.storage.local.remove(currentOrigin)
+    loadConnections()
   }
 
   return (

@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react"
+import browser from "webextension-polyfill"
 
 import { useVault } from "./vault"
 
@@ -38,12 +39,11 @@ export const IdentityProvider = ({ children }) => {
   )
   const [isReady, setIsReady] = useState(false)
 
-  // Load identities from the vault when it becomes available
   useEffect(() => {
     const loadIdentities = async () => {
       if (isInitialized && isUnlocked) {
         try {
-          const response = await chrome.runtime.sendMessage({
+          const response = await browser.runtime.sendMessage({
             type: "GET_IDENTITIES_REQUEST"
           })
           if (response?.success && Array.isArray(response.identities)) {
@@ -68,8 +68,7 @@ export const IdentityProvider = ({ children }) => {
   }, [isUnlocked, isInitialized])
 
   useEffect(() => {
-    // Load selected identity from Chrome Storage on component mount
-    chrome.storage.local.get([storageKey], (result) => {
+    browser.storage.local.get([storageKey]).then((result) => {
       const storedActiveIdentity = result[storageKey]
       if (storedActiveIdentity) {
         const initialSelected = identities.find(
@@ -81,27 +80,26 @@ export const IdentityProvider = ({ children }) => {
   }, [identities])
 
   useEffect(() => {
-    // Save selected identity to Chrome Storage whenever it changes
     if (selectedIdentity) {
-      chrome.storage.local.set({ [storageKey]: selectedIdentity })
+      browser.storage.local.set({ [storageKey]: selectedIdentity })
     }
   }, [selectedIdentity])
 
   const addIdentity = async (identity: Identity, privateKey: string) => {
     try {
-      const response = await chrome.runtime.sendMessage({
+      const response = await browser.runtime.sendMessage({
         type: "ADD_IDENTITY_REQUEST",
         payload: {
           identity: {
             ...identity,
             privateKey
-          } // Send full identity
+          }
         }
       })
       if (!response?.success) {
         throw new Error(response?.error)
       }
-      setIdentities((prev) => [...prev, identity]) // Update local state
+      setIdentities((prev) => [...prev, identity])
     } catch (error) {
       console.error("Error adding identity:", error)
       throw error
@@ -110,7 +108,7 @@ export const IdentityProvider = ({ children }) => {
 
   const removeIdentity = async (identity: Identity) => {
     try {
-      const response = await chrome.runtime.sendMessage({
+      const response = await browser.runtime.sendMessage({
         type: "REMOVE_IDENTITY_REQUEST",
         payload: { label: identity.label }
       })
@@ -131,7 +129,7 @@ export const IdentityProvider = ({ children }) => {
     const identityExists = identities.find((i) => i.label === identity.label)
     if (identityExists) {
       setSelectedIdentity(identity)
-      chrome.runtime.sendMessage({
+      browser.runtime.sendMessage({
         type: "EVENT_REQUEST",
         payload: {
           event: "identitiesChanged",

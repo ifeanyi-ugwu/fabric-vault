@@ -1,4 +1,5 @@
 import type { PlasmoCSConfig } from "plasmo"
+import browser from "webextension-polyfill"
 import INJECTED_SCRIPT_PATH from "url:~src/injected"
 
 export const config: PlasmoCSConfig = {
@@ -19,7 +20,7 @@ function injectScript() {
 
 injectScript()
 
-const port = chrome.runtime.connect({ name: "fabric" })
+const port = browser.runtime.connect({ name: "fabric" })
 
 window.addEventListener("message", (event) => {
   const msg = event.data

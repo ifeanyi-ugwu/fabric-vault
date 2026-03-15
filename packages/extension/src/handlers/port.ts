@@ -1,3 +1,6 @@
+import type Browser from "webextension-polyfill"
+import browser from "webextension-polyfill"
+
 import {
   activeSubscriptionWebSockets,
   connections,
@@ -6,6 +9,7 @@ import {
   wallet
 } from "~background/state"
 import type { Identity } from "~contexts/identity"
+import { setSessionData } from "~lib/storage"
 import { getStoredConnections } from "~services/connection"
 import { handleSignRequest } from "~services/wallet"
 
@@ -22,11 +26,8 @@ async function isConnectedToIdentity(
 }
 
 async function getActiveIdentityLabel(): Promise<string | null> {
-  return new Promise((resolve) => {
-    chrome.storage.local.get(["selectedIdentity"], (result) => {
-      resolve(result.selectedIdentity?.label || null)
-    })
-  })
+  const result = await browser.storage.local.get(["selectedIdentity"])
+  return result.selectedIdentity?.label || null
 }
 
 async function determineAndValidateIdentity({
@@ -62,7 +63,7 @@ async function determineAndValidateIdentity({
   } else {
     // If no identity explicitly provided by dApp, use the currently active one
     const activeIdentityPublicInfo = (
-      await chrome.storage.local.get("selectedIdentity")
+      await browser.storage.local.get("selectedIdentity")
     ).selectedIdentity
     if (activeIdentityPublicInfo) {
       identityToUseForConnection.label = activeIdentityPublicInfo.label
@@ -102,7 +103,7 @@ async function determineAndValidateIdentity({
 }
 
 async function openAuthorizationPopup(
-  port: chrome.runtime.Port,
+  port: Browser.Runtime.Port,
   message: any,
   type: string
 ): Promise<any> {
@@ -113,12 +114,12 @@ async function openAuthorizationPopup(
   }
 
   // Save request for the popup to consume
-  await chrome.storage.session.set({
+  await setSessionData({
     [`pendingRequest_${id}`]: { id, payload: message, type, origin }
   })
 
-  chrome.windows.create({
-    url: chrome.runtime.getURL(`popup.html?requestId=${id}`),
+  browser.windows.create({
+    url: browser.runtime.getURL(`popup.html?requestId=${id}`),
     type: "popup",
     width: 360,
     height: 600
@@ -129,7 +130,7 @@ async function openAuthorizationPopup(
   })
 }
 
-async function handleIdentitiesRequest(port: chrome.runtime.Port) {
+async function handleIdentitiesRequest(port: Browser.Runtime.Port) {
   const origin = port.sender?.origin
   if (!origin) {
     throw new Error("Could not determine the origin of the request.")
@@ -165,7 +166,7 @@ async function handleIdentitiesRequest(port: chrome.runtime.Port) {
 }
 
 // Main request handler for port messages
-async function handlePortRequest(message: any, port: chrome.runtime.Port) {
+async function handlePortRequest(message: any, port: Browser.Runtime.Port) {
   const { method } = message
   const origin = port.sender?.origin
 
@@ -206,7 +207,7 @@ async function handlePortRequest(message: any, port: chrome.runtime.Port) {
 
 async function handleSubscriptionRequest(
   message: any,
-  port: chrome.runtime.Port,
+  port: Browser.Runtime.Port,
   origin: string
 ) {
   const { method } = message
@@ -216,7 +217,7 @@ async function handleSubscriptionRequest(
     origin
   })
 
-  const selectedPeer = (await chrome.storage.local.get("selectedPeer"))
+  const selectedPeer = (await browser.storage.local.get("selectedPeer"))
     .selectedPeer
   if (!selectedPeer || !selectedPeer.rpcUrl) {
     throw new Error(
@@ -373,32 +374,23 @@ async function createWebSocketConnection(
 
       if (target) {
         // Emit the event to the specific dApp that subscribed
-        chrome.tabs.sendMessage(
-          target.port.sender?.tab?.id!,
-          {
+        try {
+          await browser.tabs.sendMessage(target.port.sender?.tab?.id!, {
             type: "fabric_subscription",
             result: notification.params,
             kind: "event",
             from: "background"
-          },
-          (response) => {
-            if (chrome.runtime.lastError) {
-              console.warn(
-                `Could not send subscription event to tab ${target.port.sender?.tab?.id}:`,
-                chrome.runtime.lastError.message
-              )
-              // If the tab is gone, remove the subscription
-              //subscriptionToPortMap.delete(subscriptionId)
-            }
-          }
-        )
+          })
+        } catch (err) {
+          console.warn(
+            `Could not send subscription event to tab ${target.port.sender?.tab?.id}:`,
+            err instanceof Error ? err.message : String(err)
+          )
+        }
       } else {
         console.warn(
           `Received subscription notification for unknown ID: ${subscriptionId}`
         )
-        // You might want to send an unsubscribe message back to the server
-        // for unknown IDs if you don't track them correctly.
-        // but this block, ideally, will not be reachable
       }
     } else {
       console.log("Unhandled WebSocket message:", notification)
@@ -426,7 +418,7 @@ async function waitForWebSocketOpen(ws: WebSocket): Promise<void> {
 }
 
 // Main port connection handler
-export const handlePortConnection = (port: chrome.runtime.Port) => {
+export const handlePortConnection = (port: Browser.Runtime.Port) => {
   if (port.name !== "fabric") return
 
   const portRequestIds = new Set<string>()
@@ -471,30 +463,23 @@ export const handlePortConnection = (port: chrome.runtime.Port) => {
     //this check for name is because of plasmo's port that's almost frequently connecting and disconnecting during development
     if (port.name !== "fabric") return
 
-    // Cleanup pending requests associated with this por
+    // Cleanup pending requests associated with this port
     portRequestIds.forEach((requestId) => {
       if (pendingRequestResolvers.has(requestId)) {
         // the port is disconnected anyway, it wont be receiving the rejection and there would be no pending promises since the listener goes with the port
         //const { reject } = pendingRequestResolvers.get(requestId)!
         //reject(new Error("Request cancelled: DApp port disconnected."))
         pendingRequestResolvers.delete(requestId)
-        chrome.storage.local.remove(`pendingRequest_${requestId}`)
+        browser.storage.local.remove(`pendingRequest_${requestId}`)
       }
     })
     portRequestIds.clear()
 
     // Clean up subscriptions for this disconnected port
     const disconnectedOrigin = port.sender?.origin
-    if (chrome.runtime.lastError) {
-      console.error(
-        `Port disconnected for origin: ${disconnectedOrigin}. Port name: ${port.name}. Error:`,
-        chrome.runtime.lastError.message
-      )
-    } else {
-      console.log(
-        `Port disconnected for origin: ${disconnectedOrigin}. Port name: ${port.name}. No specific error reported.`
-      )
-    }
+    console.log(
+      `Port disconnected for origin: ${disconnectedOrigin}. Port name: ${port.name}.`
+    )
 
     if (disconnectedOrigin) {
       subscriptionToPortMap.forEach((value, subId) => {

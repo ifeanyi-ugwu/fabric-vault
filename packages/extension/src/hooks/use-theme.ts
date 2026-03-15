@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import browser from "webextension-polyfill"
 
 export type Theme = "dark" | "light"
 
@@ -10,7 +11,7 @@ export function useTheme() {
   const [theme, setTheme] = useState<Theme>("dark")
 
   useEffect(() => {
-    chrome.storage.local.get(["theme"], (result) => {
+    browser.storage.local.get(["theme"]).then((result) => {
       const saved = (result.theme as Theme) ?? "dark"
       applyTheme(saved)
       setTheme(saved)
@@ -21,7 +22,7 @@ export function useTheme() {
     const next: Theme = theme === "dark" ? "light" : "dark"
     applyTheme(next)
     setTheme(next)
-    chrome.storage.local.set({ theme: next })
+    browser.storage.local.set({ theme: next })
   }
 
   return { theme, toggle }

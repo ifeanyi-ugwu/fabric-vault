@@ -1,3 +1,5 @@
+import browser from "webextension-polyfill"
+
 import { connections } from "~background/state"
 import type { SiteIdentityConnection } from "~hooks/use-identity-to-site-connection"
 
@@ -5,7 +7,7 @@ export async function getStoredConnections(): Promise<
   Map<string, SiteIdentityConnection[]>
 > {
   try {
-    const result = await chrome.storage.local.get("fabricVaultConnections")
+    const result = await browser.storage.local.get("fabricVaultConnections")
     const storedConnections = result.fabricVaultConnections
     if (storedConnections) {
       return new Map(Object.entries(JSON.parse(storedConnections)))

@@ -1,4 +1,5 @@
 import { useState } from "react"
+import browser from "webextension-polyfill"
 
 import { Button } from "~components/ui/button"
 import { useIdentity } from "~contexts/identity"
@@ -26,8 +27,12 @@ export function SignRequest() {
       <div className="request-screen">
         <div className="request-brand">FabricVault</div>
         <div className="request-card">
-          <p className="request-error">{requestError || "No transaction request to handle."}</p>
-          <Button fullWidth onClick={() => window.close()}>Close</Button>
+          <p className="request-error">
+            {requestError || "No transaction request to handle."}
+          </p>
+          <Button fullWidth onClick={() => window.close()}>
+            Close
+          </Button>
         </div>
       </div>
     )
@@ -42,7 +47,7 @@ export function SignRequest() {
         setSending(false)
         return
       }
-      const response = await chrome.runtime.sendMessage({
+      const response = await browser.runtime.sendMessage({
         type: "SEND_TRANSACTION_REQUEST",
         payload: { peer: selectedPeer, identity: selectedIdentity, request }
       })
@@ -58,7 +63,7 @@ export function SignRequest() {
 
   const handleReject = async () => {
     try {
-      await chrome.runtime.sendMessage({
+      await browser.runtime.sendMessage({
         type: "REJECT_SIGN_REQUEST",
         id: request.id
       })

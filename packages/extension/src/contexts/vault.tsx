@@ -5,6 +5,7 @@ import {
   useEffect,
   useState
 } from "react"
+import browser from "webextension-polyfill"
 
 export interface VaultContextType {
   isUnlocked: boolean
@@ -26,7 +27,7 @@ export const VaultProvider = ({ children }) => {
 
   const checkUnlockedStatus = useCallback(async () => {
     try {
-      const response = await chrome.runtime.sendMessage({
+      const response = await browser.runtime.sendMessage({
         type: "GET_UNLOCKED_STATUS"
       })
       setIsUnlocked(response?.isUnlocked || false)
@@ -42,7 +43,7 @@ export const VaultProvider = ({ children }) => {
   }, [checkUnlockedStatus])
 
   const unlock = useCallback(async (password: string) => {
-    const response = await chrome.runtime.sendMessage({
+    const response = await browser.runtime.sendMessage({
       type: "UNLOCK_REQUEST",
       payload: { password }
     })
@@ -54,13 +55,13 @@ export const VaultProvider = ({ children }) => {
   }, [])
 
   const lock = useCallback(async () => {
-    await chrome.runtime.sendMessage({ type: "LOCK_REQUEST" })
+    await browser.runtime.sendMessage({ type: "LOCK_REQUEST" })
     setIsUnlocked(false)
   }, [])
 
   const createVault = useCallback(
     async (password: string) => {
-      const response = await chrome.runtime.sendMessage({
+      const response = await browser.runtime.sendMessage({
         type: "CREATE_VAULT_REQUEST",
         payload: { password }
       })
@@ -76,7 +77,7 @@ export const VaultProvider = ({ children }) => {
 
   const changePassword = useCallback(
     async (newPassword: string) => {
-      const response = await chrome.runtime.sendMessage({
+      const response = await browser.runtime.sendMessage({
         type: "CHANGE_PASSWORD_REQUEST",
         payload: { newPassword }
       })
@@ -90,7 +91,7 @@ export const VaultProvider = ({ children }) => {
   )
 
   const hasVault = useCallback(async () => {
-    const response = await chrome.runtime.sendMessage({
+    const response = await browser.runtime.sendMessage({
       type: "HAS_VAULT_REQUEST"
     })
     return response.hasVault
@@ -105,7 +106,7 @@ export const VaultProvider = ({ children }) => {
 
   const logout = useCallback(async () => {
     await lock()
-    await chrome.storage.local.remove("fabricVault")
+    await browser.storage.local.remove("fabricVault")
   }, [lock])
 
   return (

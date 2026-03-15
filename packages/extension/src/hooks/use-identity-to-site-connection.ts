@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
+import browser from "webextension-polyfill"
 
 import type { Identity } from "~/contexts/identity"
 
@@ -16,13 +17,12 @@ export function useIdentityToSiteConnection() {
   useEffect(() => {
     const getCurrentTabHostname = async () => {
       try {
-        const tabs = await chrome.tabs.query({
+        const tabs = await browser.tabs.query({
           active: true,
           currentWindow: true
         })
         if (tabs && tabs.length > 0 && tabs[0].url) {
           const url = new URL(tabs[0].url)
-          //setCurrentHostname(url.hostname + (url.port ? `:${url.port}` : ""))
           setCurrentHostname(
             url.protocol +
               "//" +
@@ -30,17 +30,15 @@ export function useIdentityToSiteConnection() {
               (url.port ? `:${url.port}` : "")
           )
         } else {
-          //console.warn("Could not determine the current tab URL.")
           setCurrentHostname("")
         }
       } catch (error) {
-        //console.error("Error getting current tab:", error)
         setCurrentHostname("")
       }
     }
 
     const loadConnectionsFromStorage = async () => {
-      const result = await chrome.storage.local.get("fabricVaultConnections")
+      const result = await browser.storage.local.get("fabricVaultConnections")
       const storedConnections = result.fabricVaultConnections
       if (storedConnections) {
         try {
@@ -50,10 +48,7 @@ export function useIdentityToSiteConnection() {
           >
           setConnectedSites(new Map(Object.entries(parsedConnections)))
         } catch (e) {
-          console.error(
-            "Failed to parse stored connections from chrome.storage.local",
-            e
-          )
+          console.error("Failed to parse stored connections", e)
         }
       }
     }
@@ -100,7 +95,7 @@ export function useIdentityToSiteConnection() {
           newConnectedSites.delete(currentHostname)
         }
 
-        chrome.runtime.sendMessage({
+        browser.runtime.sendMessage({
           type: "EVENT_REQUEST",
           payload: {
             event: "identitiesChanged",
@@ -117,7 +112,7 @@ export function useIdentityToSiteConnection() {
           newConnection
         ])
 
-        chrome.runtime.sendMessage({
+        browser.runtime.sendMessage({
           type: "EVENT_REQUEST",
           payload: {
             event: "identitiesChanged",
@@ -128,9 +123,8 @@ export function useIdentityToSiteConnection() {
 
       setConnectedSites(newConnectedSites)
 
-      // Save to chrome.storage.local
       const connectionsObject = Object.fromEntries(newConnectedSites)
-      await chrome.storage.local.set({
+      await browser.storage.local.set({
         fabricVaultConnections: JSON.stringify(connectionsObject)
       })
     },

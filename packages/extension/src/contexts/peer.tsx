@@ -6,6 +6,7 @@ import {
   useState,
   type ReactNode
 } from "react"
+import browser from "webextension-polyfill"
 
 /**
  * Peers are external organizations/nodes that this vault/wallet can connect to
@@ -35,7 +36,7 @@ const availablePeersStorageKey = "availablePeers"
 const selectedPeerStorageKey = "selectedPeer"
 
 const savePeersToStorage = (peers: Peer[]) => {
-  chrome.storage.local.set({ [availablePeersStorageKey]: peers })
+  browser.storage.local.set({ [availablePeersStorageKey]: peers })
 }
 
 export function PeerProvider({ children }: { children: ReactNode }) {
@@ -43,16 +44,14 @@ export function PeerProvider({ children }: { children: ReactNode }) {
   const [peers, setPeers] = useState<Peer[]>([])
 
   useEffect(() => {
-    // Load available peers from Chrome Storage on component mount
-    chrome.storage.local.get([availablePeersStorageKey], (result) => {
+    browser.storage.local.get([availablePeersStorageKey]).then((result) => {
       const storedPeers = result[availablePeersStorageKey] as Peer[] | undefined
       setPeers(storedPeers || [])
     })
   }, [])
 
   useEffect(() => {
-    // Load selected peer from Chrome Storage on component mount
-    chrome.storage.local.get([selectedPeerStorageKey], (result) => {
+    browser.storage.local.get([selectedPeerStorageKey]).then((result) => {
       const storedPeerId = result[selectedPeerStorageKey]?.id
       if (storedPeerId && peers.length > 0) {
         const initialSelected = peers.find((peer) => peer.id === storedPeerId)
@@ -62,9 +61,8 @@ export function PeerProvider({ children }: { children: ReactNode }) {
   }, [peers])
 
   useEffect(() => {
-    // Save selected peer to Chrome Storage whenever it changes
     if (selectedPeer) {
-      chrome.storage.local.set({ [selectedPeerStorageKey]: selectedPeer })
+      browser.storage.local.set({ [selectedPeerStorageKey]: selectedPeer })
     }
   }, [selectedPeer])
 
@@ -89,7 +87,6 @@ export function PeerProvider({ children }: { children: ReactNode }) {
         savePeersToStorage(updatedPeers)
         return updatedPeers
       })
-      // If the updated peer was the selected one, update the selected state too
       if (selectedPeer?.id === updatedPeer.id) {
         setSelectedPeer(updatedPeer)
       }
@@ -106,7 +103,6 @@ export function PeerProvider({ children }: { children: ReactNode }) {
         savePeersToStorage(updatedPeers)
         return updatedPeers
       })
-      // If the removed peer was the selected one, clear the selected state
       if (selectedPeer?.id === peerToRemove.id) {
         setSelectedPeer(null)
       }
@@ -116,7 +112,7 @@ export function PeerProvider({ children }: { children: ReactNode }) {
 
   const switchPeer = (peer: Peer) => {
     setSelectedPeer(peer)
-    chrome.runtime.sendMessage({
+    browser.runtime.sendMessage({
       type: "EVENT_REQUEST",
       payload: {
         event: "peerChanged",
