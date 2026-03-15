@@ -146,7 +146,12 @@
 }
 
 ::selection {
-  background: var(--accent-subtle);
+  background: rgba(79, 127, 255, 0.35);
+  color: var(--text-primary);
+}
+
+[data-theme="light"] ::selection {
+  background: rgba(59, 126, 248, 0.2);
   color: var(--text-primary);
 }
 
