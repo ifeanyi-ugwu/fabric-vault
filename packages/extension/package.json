@@ -32,6 +32,14 @@
     "typescript": "5.3.3"
   },
   "manifest": {
+    "browser_specific_settings": {
+      "gecko": {
+        "id": "fabricvault@ifeanyiugwu",
+        "data_collection_permissions": {
+          "required": ["none"]
+        }
+      }
+    },
     "host_permissions": [
       "https://*/*",
       "http://*/*",
