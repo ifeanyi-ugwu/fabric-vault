@@ -9,6 +9,7 @@ import {
 
 import { Lock } from "./components/lock"
 import { AddIdentity } from "./pages/add-identity"
+import { AddPeer } from "./pages/add-peer"
 import CreateWallet from "./pages/create-wallet"
 import Dashboard from "./pages/dashboard"
 import { Home } from "./pages/home"
@@ -66,6 +67,12 @@ const addIdentityRoute = createRoute({
   component: AddIdentity
 })
 
+const addPeerRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/add-peer",
+  component: AddPeer
+})
+
 const lockRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/lock",
@@ -85,6 +92,7 @@ const routeTree = rootRoute.addChildren([
   changePasswordRoute,
   dashboardRoute,
   addIdentityRoute,
+  addPeerRoute,
   lockRoute,
   handleRequestRoute
 ])

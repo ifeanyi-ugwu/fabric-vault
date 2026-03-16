@@ -1,4 +1,5 @@
 import { useState } from "react"
+import browser from "webextension-polyfill"
 
 import { Button } from "~/components/ui/button"
 import { DropZone } from "~/components/ui/drop-zone"
@@ -34,16 +35,29 @@ export function Peers() {
     setIsAddModalOpen(open)
   }
 
+  // Firefox closes extension popups when a file picker dialog opens, so we
+  // open the page in a separate browser window instead where that doesn't apply.
+  const openAddPeer = () => {
+    if (navigator.userAgent.includes("Firefox")) {
+      browser.windows.create({
+        url: browser.runtime.getURL("popup.html#/add-peer"),
+        type: "popup",
+        width: 360,
+        height: 600
+      })
+    } else {
+      setIsAddModalOpen(true)
+    }
+  }
+
   return (
     <div>
       <div className="section-header">
         <h3>Your Peers</h3>
+        <Button variant="secondary" size="small" onClick={openAddPeer}>
+          Add Peer
+        </Button>
         <Modal isOpen={isAddModalOpen} onOpenChange={handleAddModalOpenChange}>
-          <Modal.Trigger asChild>
-            <Button variant="secondary" size="small">
-              Add Peer
-            </Button>
-          </Modal.Trigger>
           <Modal.Content>
             <Modal.Header>Add New Peer</Modal.Header>
             <Modal.Body>
@@ -71,7 +85,7 @@ export function Peers() {
           title="No Peers"
           description="Add a peer to start interacting with them"
           actionLabel="Add Peer"
-          onAction={() => setIsAddModalOpen(true)}
+          onAction={openAddPeer}
         />
       )}
 
