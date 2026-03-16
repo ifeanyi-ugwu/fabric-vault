@@ -1,6 +1,17 @@
 import { createContext, useContext, useEffect, useState } from "react"
+import { sendToBackground } from "@plasmohq/messaging"
 import browser from "webextension-polyfill"
 
+import type {
+  RequestBody as AddIdentityBody,
+  ResponseBody as AddIdentityResponse
+} from "~background/messages/add-identity"
+import type { RequestBody as EmitEventBody } from "~background/messages/emit-event"
+import type { ResponseBody as GetIdentitiesResponse } from "~background/messages/get-identities"
+import type {
+  RequestBody as RemoveIdentityBody,
+  ResponseBody as RemoveIdentityResponse
+} from "~background/messages/remove-identity"
 import { useVault } from "./vault"
 
 export interface Identity {
@@ -43,11 +54,11 @@ export const IdentityProvider = ({ children }) => {
     const loadIdentities = async () => {
       if (isInitialized && isUnlocked) {
         try {
-          const response = await browser.runtime.sendMessage({
-            type: "GET_IDENTITIES_REQUEST"
+          const response = await sendToBackground<never, GetIdentitiesResponse>({
+            name: "get-identities"
           })
           if (response?.success && Array.isArray(response.identities)) {
-            setIdentities(response.identities)
+            setIdentities(response.identities as Identity[])
             setIsReady(true)
           } else {
             setIdentities([])
@@ -87,14 +98,9 @@ export const IdentityProvider = ({ children }) => {
 
   const addIdentity = async (identity: Identity, privateKey: string) => {
     try {
-      const response = await browser.runtime.sendMessage({
-        type: "ADD_IDENTITY_REQUEST",
-        payload: {
-          identity: {
-            ...identity,
-            privateKey
-          }
-        }
+      const response = await sendToBackground<AddIdentityBody, AddIdentityResponse>({
+        name: "add-identity",
+        body: { identity: { ...identity, privateKey } }
       })
       if (!response?.success) {
         throw new Error(response?.error)
@@ -108,9 +114,9 @@ export const IdentityProvider = ({ children }) => {
 
   const removeIdentity = async (identity: Identity) => {
     try {
-      const response = await browser.runtime.sendMessage({
-        type: "REMOVE_IDENTITY_REQUEST",
-        payload: { label: identity.label }
+      const response = await sendToBackground<RemoveIdentityBody, RemoveIdentityResponse>({
+        name: "remove-identity",
+        body: { label: identity.label }
       })
       if (!response?.success) {
         throw new Error(response?.error)
@@ -129,12 +135,9 @@ export const IdentityProvider = ({ children }) => {
     const identityExists = identities.find((i) => i.label === identity.label)
     if (identityExists) {
       setSelectedIdentity(identity)
-      browser.runtime.sendMessage({
-        type: "EVENT_REQUEST",
-        payload: {
-          event: "identitiesChanged",
-          data: [identity]
-        }
+      sendToBackground<EmitEventBody>({
+        name: "emit-event",
+        body: { event: "identitiesChanged", data: [identity] }
       })
     }
   }

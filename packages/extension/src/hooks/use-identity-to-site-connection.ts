@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react"
+import { sendToBackground } from "@plasmohq/messaging"
 import browser from "webextension-polyfill"
 
+import type { RequestBody as EmitEventBody } from "~background/messages/emit-event"
 import type { Identity } from "~/contexts/identity"
 
 export interface SiteIdentityConnection {
@@ -94,12 +96,9 @@ export function useIdentityToSiteConnection() {
           newConnectedSites.delete(currentHostname)
         }
 
-        browser.runtime.sendMessage({
-          type: "EVENT_REQUEST",
-          payload: {
-            event: "identitiesChanged",
-            data: []
-          }
+        sendToBackground<EmitEventBody>({
+          name: "emit-event",
+          body: { event: "identitiesChanged", data: [] }
         })
       } else {
         const newConnection = {
@@ -111,12 +110,9 @@ export function useIdentityToSiteConnection() {
           newConnection
         ])
 
-        browser.runtime.sendMessage({
-          type: "EVENT_REQUEST",
-          payload: {
-            event: "identitiesChanged",
-            data: [identity]
-          }
+        sendToBackground<EmitEventBody>({
+          name: "emit-event",
+          body: { event: "identitiesChanged", data: [identity] }
         })
       }
 

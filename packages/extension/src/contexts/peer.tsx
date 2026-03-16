@@ -6,7 +6,10 @@ import {
   useState,
   type ReactNode
 } from "react"
+import { sendToBackground } from "@plasmohq/messaging"
 import browser from "webextension-polyfill"
+
+import type { RequestBody as EmitEventBody } from "~background/messages/emit-event"
 
 /**
  * Peers are external organizations/nodes that this vault/wallet can connect to
@@ -113,12 +116,9 @@ export function PeerProvider({ children }: { children: ReactNode }) {
 
   const switchPeer = (peer: Peer) => {
     setSelectedPeer(peer)
-    browser.runtime.sendMessage({
-      type: "EVENT_REQUEST",
-      payload: {
-        event: "peerChanged",
-        data: peer.endpoint
-      }
+    sendToBackground<EmitEventBody>({
+      name: "emit-event",
+      body: { event: "peerChanged", data: peer.endpoint }
     })
   }
 

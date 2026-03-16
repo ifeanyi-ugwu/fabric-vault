@@ -1,9 +1,6 @@
 import browser from "webextension-polyfill"
 
-import { handleConnectionMessage } from "~handlers/connection"
 import { handlePortConnection } from "~handlers/port"
-import { handleVaultMessage } from "~handlers/vault"
-import { handleWalletMessage } from "~handlers/wallet"
 
 /**
  * Keep service worker alive to maintain WebSocket connections for dApp subscriptions.
@@ -26,19 +23,4 @@ self.addEventListener("beforeunload", () => {
   clearInterval(keepAlive)
 })
 
-// Returns the response value directly so webextension-polyfill can send it back
-// to the caller. The sendResponse callback pattern is incompatible with async
-// listeners — the polyfill uses the Promise's resolved value as the response.
-const messageRouter = async (request: any, sender: any) => {
-  const vaultResult = await handleVaultMessage(request, sender)
-  if (vaultResult !== undefined) return vaultResult
-
-  const walletResult = await handleWalletMessage(request, sender)
-  if (walletResult !== undefined) return walletResult
-
-  const connectionResult = await handleConnectionMessage(request, sender)
-  if (connectionResult !== undefined) return connectionResult
-}
-
-browser.runtime.onMessage.addListener(messageRouter)
 browser.runtime.onConnect.addListener(handlePortConnection)

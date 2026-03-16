@@ -5,7 +5,24 @@ import {
   useEffect,
   useState
 } from "react"
+import { sendToBackground } from "@plasmohq/messaging"
 import browser from "webextension-polyfill"
+
+import type {
+  RequestBody as ChangePasswordBody,
+  ResponseBody as ChangePasswordResponse
+} from "~background/messages/change-password"
+import type {
+  RequestBody as CreateVaultBody,
+  ResponseBody as CreateVaultResponse
+} from "~background/messages/create-vault"
+import type { ResponseBody as GetUnlockedStatusResponse } from "~background/messages/get-unlocked-status"
+import type { ResponseBody as HasVaultResponse } from "~background/messages/has-vault"
+import type { ResponseBody as LockResponse } from "~background/messages/lock"
+import type {
+  RequestBody as UnlockBody,
+  ResponseBody as UnlockResponse
+} from "~background/messages/unlock"
 
 export interface VaultContextType {
   isUnlocked: boolean
@@ -27,8 +44,8 @@ export const VaultProvider = ({ children }) => {
 
   const checkUnlockedStatus = useCallback(async () => {
     try {
-      const response = await browser.runtime.sendMessage({
-        type: "GET_UNLOCKED_STATUS"
+      const response = await sendToBackground<never, GetUnlockedStatusResponse>({
+        name: "get-unlocked-status"
       })
       setIsUnlocked(response?.isUnlocked || false)
       setIsInitialized(true)
@@ -43,9 +60,9 @@ export const VaultProvider = ({ children }) => {
   }, [checkUnlockedStatus])
 
   const unlock = useCallback(async (password: string) => {
-    const response = await browser.runtime.sendMessage({
-      type: "UNLOCK_REQUEST",
-      payload: { password }
+    const response = await sendToBackground<UnlockBody, UnlockResponse>({
+      name: "unlock",
+      body: { password }
     })
     if (response?.success) {
       setIsUnlocked(true)
@@ -55,18 +72,17 @@ export const VaultProvider = ({ children }) => {
   }, [])
 
   const lock = useCallback(async () => {
-    await browser.runtime.sendMessage({ type: "LOCK_REQUEST" })
+    await sendToBackground<never, LockResponse>({ name: "lock" })
     setIsUnlocked(false)
   }, [])
 
   const createVault = useCallback(
     async (password: string) => {
-      const response = await browser.runtime.sendMessage({
-        type: "CREATE_VAULT_REQUEST",
-        payload: { password }
+      const response = await sendToBackground<CreateVaultBody, CreateVaultResponse>({
+        name: "create-vault",
+        body: { password }
       })
       if (response?.success) {
-        // Optionally, fetch initial vault data or update UI
         await unlock(password)
       } else {
         throw new Error(response.error)
@@ -77,9 +93,9 @@ export const VaultProvider = ({ children }) => {
 
   const changePassword = useCallback(
     async (newPassword: string) => {
-      const response = await browser.runtime.sendMessage({
-        type: "CHANGE_PASSWORD_REQUEST",
-        payload: { newPassword }
+      const response = await sendToBackground<ChangePasswordBody, ChangePasswordResponse>({
+        name: "change-password",
+        body: { newPassword }
       })
       if (response?.success) {
         await unlock(newPassword)
@@ -91,8 +107,8 @@ export const VaultProvider = ({ children }) => {
   )
 
   const hasVault = useCallback(async () => {
-    const response = await browser.runtime.sendMessage({
-      type: "HAS_VAULT_REQUEST"
+    const response = await sendToBackground<never, HasVaultResponse>({
+      name: "has-vault"
     })
     return response.hasVault
   }, [])

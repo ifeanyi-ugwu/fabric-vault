@@ -1,7 +1,9 @@
 import { useState } from "react"
-import browser from "webextension-polyfill"
+import { sendToBackground } from "@plasmohq/messaging"
 
 import { Button } from "~/components/ui/button"
+import type { RequestBody as ApproveConnectionBody } from "~background/messages/approve-connection"
+import type { RequestBody as RejectConnectionBody } from "~background/messages/reject-connection"
 import { useIdentity } from "~contexts/identity"
 import { usePeer } from "~contexts/peer"
 import { useRequest } from "~contexts/request"
@@ -37,10 +39,13 @@ export function ConnectRequest() {
     if (!selectedIdentity) return
     try {
       setIsSubmitting(true)
-      await browser.runtime.sendMessage({
-        type: "APPROVE_CONNECTION_REQUEST",
-        id: request.id,
-        payload: { identities: [selectedIdentity], origin: request.origin }
+      await sendToBackground<ApproveConnectionBody>({
+        name: "approve-connection",
+        body: {
+          requestId: request.id,
+          identities: [selectedIdentity],
+          origin: request.origin
+        }
       })
       window.close()
     } catch (err) {
@@ -52,9 +57,9 @@ export function ConnectRequest() {
   const handleReject = async () => {
     try {
       setIsSubmitting(true)
-      await browser.runtime.sendMessage({
-        type: "REJECT_CONNECTION_REQUEST",
-        id: request.id
+      await sendToBackground<RejectConnectionBody>({
+        name: "reject-connection",
+        body: { requestId: request.id }
       })
       window.close()
     } catch (err) {

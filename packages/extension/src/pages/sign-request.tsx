@@ -1,7 +1,12 @@
 import { useState } from "react"
-import browser from "webextension-polyfill"
+import { sendToBackground } from "@plasmohq/messaging"
 
 import { Button } from "~components/ui/button"
+import type { RequestBody as RejectSignBody } from "~background/messages/reject-sign"
+import type {
+  RequestBody as SendTransactionBody,
+  ResponseBody as SendTransactionResponse
+} from "~background/messages/send-transaction"
 import { useIdentity } from "~contexts/identity"
 import { usePeer } from "~contexts/peer"
 import { useRequest } from "~contexts/request"
@@ -47,9 +52,9 @@ export function SignRequest() {
         setSending(false)
         return
       }
-      const response = await browser.runtime.sendMessage({
-        type: "SEND_TRANSACTION_REQUEST",
-        payload: { peer: selectedPeer, identity: selectedIdentity, request }
+      const response = await sendToBackground<SendTransactionBody, SendTransactionResponse>({
+        name: "send-transaction",
+        body: { peer: selectedPeer, identity: selectedIdentity, request }
       })
       if (!response?.success) {
         throw new Error(response?.error || "Failed to initiate transaction.")
@@ -63,9 +68,9 @@ export function SignRequest() {
 
   const handleReject = async () => {
     try {
-      await browser.runtime.sendMessage({
-        type: "REJECT_SIGN_REQUEST",
-        id: request.id
+      await sendToBackground<RejectSignBody>({
+        name: "reject-sign",
+        body: { requestId: request.id }
       })
       window.close()
     } catch (err) {
