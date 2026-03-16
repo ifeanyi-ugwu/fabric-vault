@@ -33,13 +33,34 @@ export const emitEventToDapp = async ({
   type: string
   result: any
 }) => {
-  // Notify content scripts (and thus injected scripts) about the event
-  for (const port of connections.values()) {
-    port.postMessage({
-      type,
-      result,
-      kind: "event",
-      from: "background"
-    })
+  if (type === "identitiesChanged") {
+    const storedConnections = await getStoredConnections()
+
+    for (const port of connections.values()) {
+      const origin = (port.sender as any)?.origin as string | undefined
+      const allowedIdentities = origin ? (storedConnections.get(origin) ?? []) : []
+
+      const filtered = Array.isArray(result)
+        ? result.filter((identity: { label?: string }) =>
+            allowedIdentities.some((conn) => conn.identityLabel === identity.label)
+          )
+        : []
+
+      port.postMessage({
+        type,
+        result: filtered,
+        kind: "event",
+        from: "background"
+      })
+    }
+  } else {
+    for (const port of connections.values()) {
+      port.postMessage({
+        type,
+        result,
+        kind: "event",
+        from: "background"
+      })
+    }
   }
 }
