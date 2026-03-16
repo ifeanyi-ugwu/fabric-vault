@@ -86,6 +86,8 @@ export function useIdentityToSiteConnection() {
         (conn) => conn.identityLabel === identity.label
       )
 
+      let eventData: Identity[]
+
       if (isConnected) {
         const filteredConnections = siteConnections.filter(
           (conn) => conn.identityLabel !== identity.label
@@ -95,11 +97,7 @@ export function useIdentityToSiteConnection() {
         } else {
           newConnectedSites.delete(currentHostname)
         }
-
-        sendToBackground<EmitEventBody>({
-          name: "emit-event",
-          body: { event: "identitiesChanged", data: [] }
-        })
+        eventData = []
       } else {
         const newConnection = {
           identityLabel: identity.label,
@@ -109,17 +107,18 @@ export function useIdentityToSiteConnection() {
           ...siteConnections,
           newConnection
         ])
-
-        sendToBackground<EmitEventBody>({
-          name: "emit-event",
-          body: { event: "identitiesChanged", data: [identity] }
-        })
+        eventData = [identity]
       }
 
       setConnectedSites(newConnectedSites)
 
       const connectionsObject = Object.fromEntries(newConnectedSites)
       await browser.storage.local.set({ fabricVaultConnections: JSON.stringify(connectionsObject) })
+
+      sendToBackground<EmitEventBody>({
+        name: "emit-event",
+        body: { event: "identitiesChanged", data: eventData }
+      })
     },
     [currentHostname, connectedSites]
   )
