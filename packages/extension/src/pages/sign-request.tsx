@@ -105,12 +105,12 @@ export function SignRequest() {
 
         {!selectedIdentity && (
           <div className="request-warning">
-            No identity selected. Return to the dashboard to select one.
+            No identity selected. Click the FabricVault icon in your browser toolbar to open the extension and select one.
           </div>
         )}
         {!selectedPeer && (
           <div className="request-warning">
-            No peer selected. Return to the dashboard to select one.
+            No peer selected. Click the FabricVault icon in your browser toolbar to open the extension and select one.
           </div>
         )}
 

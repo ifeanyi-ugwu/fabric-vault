@@ -96,7 +96,7 @@ export function ConnectRequest() {
           </div>
         ) : (
           <div className="request-warning">
-            No identity selected. Go to your dashboard and select one before connecting.
+            No identity selected. Click the FabricVault icon in your browser toolbar to open the extension and select one.
           </div>
         )}
 
