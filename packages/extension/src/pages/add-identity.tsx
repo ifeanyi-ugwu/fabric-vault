@@ -55,7 +55,13 @@ export function AddIdentity() {
           )}
 
           <div className="form-actions">
-            <Button variant="outline" onClick={() => navigate({ to: "/dashboard" })}>
+            <Button
+              variant="outline"
+              onClick={() =>
+                window.history.length > 1
+                  ? navigate({ to: "/dashboard" })
+                  : window.close()
+              }>
               Cancel
             </Button>
             <Button type="submit">Add Identity</Button>

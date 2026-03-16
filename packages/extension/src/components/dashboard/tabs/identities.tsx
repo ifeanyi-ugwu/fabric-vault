@@ -1,4 +1,5 @@
 import { useNavigate } from "@tanstack/react-router"
+import browser from "webextension-polyfill"
 
 import { Button } from "~/components/ui/button"
 import { useIdentity } from "~/contexts/identity"
@@ -11,6 +12,21 @@ export const Identities = () => {
   const { identities, selectedIdentity, switchIdentity, removeIdentity } =
     useIdentity()
 
+  const openAddIdentity = () => {
+    // Firefox closes extension popups when a file picker dialog opens, so we
+    // open the page in a separate browser window instead where that doesn't apply.
+    if (navigator.userAgent.includes("Firefox")) {
+      browser.windows.create({
+        url: browser.runtime.getURL("popup.html#/add-identity"),
+        type: "popup",
+        width: 360,
+        height: 600
+      })
+    } else {
+      navigate({ to: "/add-identity" })
+    }
+  }
+
   return (
     <div>
       <div className="section-header">
@@ -18,7 +34,7 @@ export const Identities = () => {
         <Button
           variant="secondary"
           size="small"
-          onClick={() => navigate({ to: "/add-identity" })}>
+          onClick={openAddIdentity}>
           Add Identity
         </Button>
       </div>
@@ -40,7 +56,7 @@ export const Identities = () => {
           title="No Identities"
           description="Add an identity to start interacting with Hyperledger Fabric networks"
           actionLabel="Add Identity"
-          onAction={() => navigate({ to: "/add-identity" })}
+          onAction={openAddIdentity}
         />
       )}
     </div>

@@ -118,7 +118,7 @@ export function useAddIdentity() {
         privateKeyPEM
       )
 
-      navigate({ to: "/dashboard" })
+      window.history.length > 1 ? navigate({ to: "/dashboard" }) : window.close()
     } catch (error: any) {
       console.error("Error adding identity:", error)
       setErrorMessage(
