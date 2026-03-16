@@ -1,4 +1,5 @@
 import { useNavigate } from "@tanstack/react-router"
+import browser from "webextension-polyfill"
 
 import { Button } from "~/components/ui/button"
 import { Card } from "~/components/ui/card"
@@ -37,7 +38,9 @@ export const Settings = () => {
 
       <Card title="About">
         <div className="app-info">
-          <div className="app-version">FabricVault v0.0.3</div>
+          <div className="app-version">
+            FabricVault v{browser.runtime.getManifest().version}
+          </div>
           <p className="app-description">
             Secure browser wallet for Hyperledger Fabric
           </p>
