@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useNavigate } from "@tanstack/react-router"
 import browser from "webextension-polyfill"
 
 import { Button } from "~/components/ui/button"
@@ -10,29 +11,19 @@ import { Empty } from "../empty"
 import { PeerCard } from "../peer-card"
 
 export function Peers() {
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const navigate = useNavigate()
   const [peerToEdit, setPeerToEdit] = useState<Peer | null>(null)
   const {
     peers,
     selectedPeer: activePeer,
     switchPeer,
     removePeer,
-    addPeer,
     updatePeer
   } = usePeer()
-
-  const handleAddPeer = ({ id: _id, ...rest }: Peer) => {
-    addPeer(rest)
-    setIsAddModalOpen(false)
-  }
 
   const handleEditPeer = (updatedPeer: Peer) => {
     updatePeer(updatedPeer)
     setPeerToEdit(null)
-  }
-
-  const handleAddModalOpenChange = (open: boolean) => {
-    setIsAddModalOpen(open)
   }
 
   // Firefox closes extension popups when a file picker dialog opens, so we
@@ -46,7 +37,7 @@ export function Peers() {
         height: 600
       })
     } else {
-      setIsAddModalOpen(true)
+      navigate({ to: "/add-peer" })
     }
   }
 
@@ -57,14 +48,6 @@ export function Peers() {
         <Button variant="secondary" size="small" onClick={openAddPeer}>
           Add Peer
         </Button>
-        <Modal isOpen={isAddModalOpen} onOpenChange={handleAddModalOpenChange}>
-          <Modal.Content>
-            <Modal.Header>Add New Peer</Modal.Header>
-            <Modal.Body>
-              <PeerForm onSubmit={handleAddPeer} onCancel={() => setIsAddModalOpen(false)} />
-            </Modal.Body>
-          </Modal.Content>
-        </Modal>
       </div>
 
       {peers.length > 0 ? (

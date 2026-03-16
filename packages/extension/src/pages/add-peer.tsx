@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useNavigate } from "@tanstack/react-router"
 
 import { Button } from "~/components/ui/button"
 import { Card } from "~/components/ui/card"
@@ -6,6 +7,7 @@ import { DropZone } from "~/components/ui/drop-zone"
 import { usePeer } from "~/contexts/peer"
 
 export function AddPeer() {
+  const navigate = useNavigate()
   const { addPeer } = usePeer()
   const [peerName, setPeerName] = useState("")
   const [peerEndpoint, setPeerEndpoint] = useState("")
@@ -40,13 +42,11 @@ export function AddPeer() {
     }
 
     addPeer({ name: peerName, endpoint: peerEndpoint, rpcUrl, tlsRootCert })
-    window.close()
+    window.history.length > 1 ? navigate({ to: "/dashboard" }) : window.close()
   }
 
   const handleCancel = () => {
-    window.history.length > 1
-      ? window.history.back()
-      : window.close()
+    window.history.length > 1 ? navigate({ to: "/dashboard" }) : window.close()
   }
 
   return (
