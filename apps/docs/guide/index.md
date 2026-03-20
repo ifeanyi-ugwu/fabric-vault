@@ -5,9 +5,11 @@ dApps request transaction signing without ever touching private keys.
 
 ## Installation
 
-Install the extension from the Chrome Web Store (link TBD), or load the
-unpacked build from `packages/extension/build/chrome-mv3-dev` during
-development.
+Install the extension from the
+[Chrome Web Store](https://chromewebstore.google.com/detail/fabricvault/dgokcecgogobkcnmdlpllmflaiciaijn)
+or [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/fabricvault/),
+or load the unpacked build from `packages/extension/build/chrome-mv3-dev`
+during development.
 
 ## SDK
 

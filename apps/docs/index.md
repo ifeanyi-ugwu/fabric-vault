@@ -10,6 +10,12 @@ hero:
       text: Get Started
       link: /guide/
     - theme: alt
+      text: Chrome Web Store
+      link: https://chromewebstore.google.com/detail/fabricvault/dgokcecgogobkcnmdlpllmflaiciaijn
+    - theme: alt
+      text: Firefox Add-ons
+      link: https://addons.mozilla.org/firefox/addon/fabricvault/
+    - theme: alt
       text: View on GitHub
       link: https://github.com/ifeanyi-ugwu/fabric-vault
 
