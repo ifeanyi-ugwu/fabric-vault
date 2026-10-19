@@ -9,6 +9,7 @@
     "dev": "plasmo dev",
     "build": "plasmo build",
     "typecheck": "tsc --noEmit",
+    "test": "tsx --test \"src/**/*.test.ts\"",
     "package": "plasmo package"
   },
   "dependencies": {
@@ -30,6 +31,7 @@
     "@types/react-dom": "18.2.18",
     "@types/webextension-polyfill": "^0.10.7",
     "prettier": "3.2.4",
+    "tsx": "4.19.4",
     "typescript": "5.3.3"
   },
   "manifest": {

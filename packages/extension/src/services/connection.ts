@@ -2,6 +2,7 @@ import browser from "webextension-polyfill"
 
 import { connections } from "~background/state"
 import type { SiteIdentityConnection } from "~hooks/use-identity-to-site-connection"
+import { getPortOrigin } from "~lib/origin"
 
 export async function getStoredConnections(): Promise<
   Map<string, SiteIdentityConnection[]>
@@ -28,6 +29,18 @@ export const isConnected = async (
   return storedConnections.has(origin)
 }
 
+export async function isConnectedToIdentity(
+  origin: string | undefined,
+  identityLabel: string | undefined
+): Promise<boolean> {
+  if (!origin) return false
+  const storedConnections = await getStoredConnections()
+  const connectionsForOrigin = storedConnections.get(origin)
+  return !!connectionsForOrigin?.some(
+    (connection) => connection.identityLabel === identityLabel
+  )
+}
+
 export const emitEventToDapp = async ({
   type,
   result
@@ -39,7 +52,7 @@ export const emitEventToDapp = async ({
     const storedConnections = await getStoredConnections()
 
     for (const port of connections.values()) {
-      const origin = (port.sender as any)?.origin as string | undefined
+      const origin = getPortOrigin(port)
       const allowedIdentities = origin
         ? storedConnections.get(origin) ?? []
         : []

@@ -2,6 +2,8 @@ import { wallet } from "~background/state"
 import type { Identity } from "~contexts/identity"
 import type { PrivateIdentity } from "~lib/wallet"
 
+import { isConnectedToIdentity } from "./connection"
+
 export const addIdentity = async (identity: PrivateIdentity) => {
   await wallet.put(identity)
 }
@@ -24,22 +26,27 @@ export const getIdentities = async (): Promise<Identity[]> => {
     }))
 }
 
+/**
+ * Signs a digest for a certificate on behalf of a site. The site must be
+ * connected to the identity that owns the certificate, so a gateway cannot
+ * obtain a signature for an identity the site was never granted.
+ */
 export const handleSignRequest = async (message: any, senderOrigin: string) => {
   const { digest, certificate } = message
   if (!certificate) {
     return { success: false, error: "Certificate not provided for signing." }
   }
-  //this relied on label, find a way to do this check with only certificate
-  /*if (
-    !senderOrigin ||
-    !(await isConnectedToIdentity(senderOrigin, certificate))
-  ) {
+
+  const label = await wallet.getLabelByCertificate(certificate)
+  if (!label) {
+    return { success: false, error: "Identity not found in wallet." }
+  }
+  if (!(await isConnectedToIdentity(senderOrigin, label))) {
     return {
       success: false,
       error: "Site is not connected to the requested identity."
     }
-  }*/
-  //TODO: implement this check since we now have a certificate index
+  }
 
   try {
     const signature = await wallet.sign(digest, certificate)
