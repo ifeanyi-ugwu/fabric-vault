@@ -194,6 +194,7 @@ async function handlePortRequest(message: any, port: Browser.Runtime.Port) {
       return await openAuthorizationPopup(
         port,
         {
+          id: message.id,
           method: message.method,
           params: {
             ...message.params,
