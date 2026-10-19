@@ -206,3 +206,109 @@ describe("signing protocol selection", () => {
     assert.deepEqual(signings, ["digest", "digest", "digest"]);
   });
 });
+
+describe("responses", () => {
+  const params = {
+    identity: { mspId: "Org1MSP", certificate: "CERT" },
+    peer: { name: "peer0", endpoint: "peer0.example.com:7051" },
+    channel: "mychannel",
+    chaincode: "basic",
+    fn: "Read",
+    args: [],
+  };
+
+  const service = {
+    evaluateTransaction: async () => ({ balance: 5 }),
+    submitTransaction: async () => "committed",
+    submitAsync: async () => "tx9",
+    close: () => {},
+  } as any;
+
+  const send = async (...messages: object[]) => {
+    const ws = new FakeSocket();
+    const handler = new JsonRpcHandler(ws as any, {
+      createService: async () => service,
+    });
+    for (const message of messages) {
+      await handler.processMessage(JSON.stringify(message));
+    }
+    return ws.sent;
+  };
+
+  const call = (id: string | undefined, method: string) => ({
+    jsonrpc: "2.0",
+    ...(id === undefined ? {} : { id }),
+    method,
+    params,
+  });
+
+  it("wraps a result in a JSON-RPC envelope carrying the request id", async () => {
+    const [reply] = await send(call("7", "fabric_evaluateTransaction"));
+    assert.deepEqual(reply, {
+      jsonrpc: "2.0",
+      result: { balance: 5 },
+      id: "7",
+    });
+  });
+
+  it("wraps a string result", async () => {
+    const [reply] = await send(call("8", "fabric_submitTransaction"));
+    assert.deepEqual(reply, { jsonrpc: "2.0", result: "committed", id: "8" });
+  });
+
+  it("wraps the transaction id of an async submit", async () => {
+    const [reply] = await send(call("9", "fabric_submitAsync"));
+    assert.deepEqual(reply, {
+      jsonrpc: "2.0",
+      result: { transactionId: "tx9" },
+      id: "9",
+    });
+  });
+
+  it("answers an unsubscribe with an enveloped true", async () => {
+    const ws = new FakeSocket();
+    const handler = new JsonRpcHandler(ws as any, {
+      createService: async () => service,
+    });
+    // A connection has made a request, and so created its service, before it
+    // can hold a subscription.
+    await handler.processMessage(
+      JSON.stringify(call("0", "fabric_evaluateTransaction"))
+    );
+    (handler as any).subscriptions["s1"] = {
+      closeListener: () => {},
+      service,
+    };
+    await handler.processMessage(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: "10",
+        method: "fabric_unsubscribe",
+        params: { subscriptionId: "s1" },
+      })
+    );
+    assert.deepEqual(ws.sent[1], { jsonrpc: "2.0", result: true, id: "10" });
+  });
+
+  it("keeps an error envelope as it is", async () => {
+    const [reply] = await send(call("11", "fabric_nope"));
+    assert.equal(reply.error.code, -32601);
+    assert.equal(reply.id, "11");
+    assert.equal("result" in reply, false);
+  });
+
+  it("sends no reply to a request without an id", async () => {
+    assert.deepEqual(await send(call(undefined, "fabric_evaluateTransaction")), []);
+  });
+
+  it("answers each request of a batch with its own envelope", async () => {
+    const [reply] = await send([
+      call("a", "fabric_evaluateTransaction"),
+      call("b", "fabric_submitTransaction"),
+    ]);
+    assert.deepEqual(reply, [
+      { jsonrpc: "2.0", result: { balance: 5 }, id: "a" },
+      { jsonrpc: "2.0", result: "committed", id: "b" },
+    ]);
+  });
+});
