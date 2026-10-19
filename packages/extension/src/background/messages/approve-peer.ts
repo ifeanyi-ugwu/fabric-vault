@@ -2,7 +2,7 @@ import browser from "webextension-polyfill"
 
 import type { PlasmoMessaging } from "@plasmohq/messaging"
 
-import { pendingRequestResolvers } from "~background/state"
+import { pendingRequests } from "~background/state"
 import type { RequestData } from "~contexts/request"
 import { applyPeerRequest, parsePeerRequest } from "~lib/peer-request"
 import type { StoredPeer } from "~lib/peer-request"
@@ -22,8 +22,7 @@ const handler: PlasmoMessaging.MessageHandler<
   const pending = await sessionStore.get<RequestData>(
     `pendingRequest_${requestId}`
   )
-  const resolver = pendingRequestResolvers.get(requestId)
-  if (!pending || pending.type !== "peer" || !resolver) {
+  if (!pending || pending.type !== "peer" || !pendingRequests.has(requestId)) {
     res.send({ success: false, error: "No such peer request." })
     return
   }
@@ -42,18 +41,21 @@ const handler: PlasmoMessaging.MessageHandler<
       ...(added ? { availablePeers: peers } : {}),
       selectedPeer: selected
     })
-    resolver.resolve({ name: selected.name, endpoint: selected.endpoint })
+    pendingRequests.resolve(requestId, {
+      name: selected.name,
+      endpoint: selected.endpoint
+    })
     await emitEventToDapp({ type: "peerChanged", result: selected.endpoint })
     res.send({ success: true })
   } catch (error) {
-    resolver.reject(error)
+    pendingRequests.reject(
+      requestId,
+      error instanceof Error ? error : new Error(String(error))
+    )
     res.send({
       success: false,
       error: error instanceof Error ? error.message : String(error)
     })
-  } finally {
-    pendingRequestResolvers.delete(requestId)
-    await sessionStore.remove(`pendingRequest_${requestId}`)
   }
 }
 
