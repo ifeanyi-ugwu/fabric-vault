@@ -1,5 +1,5 @@
-import { useState } from "react"
 import { useNavigate } from "@tanstack/react-router"
+import { useState } from "react"
 
 import { Button } from "~/components/ui/button"
 import { Card } from "~/components/ui/card"
@@ -91,7 +91,9 @@ export function AddPeer() {
             />
           </div>
           <div className="form-actions">
-            <Button variant="outline" onClick={handleCancel}>Cancel</Button>
+            <Button variant="outline" onClick={handleCancel}>
+              Cancel
+            </Button>
             <Button type="submit">Add Peer</Button>
           </div>
         </form>

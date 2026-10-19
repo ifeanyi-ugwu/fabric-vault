@@ -1,12 +1,13 @@
 import { useState } from "react"
+
 import { sendToBackground } from "@plasmohq/messaging"
 
-import { Button } from "~components/ui/button"
 import type { RequestBody as RejectSignBody } from "~background/messages/reject-sign"
 import type {
   RequestBody as SendTransactionBody,
   ResponseBody as SendTransactionResponse
 } from "~background/messages/send-transaction"
+import { Button } from "~components/ui/button"
 import { useIdentity } from "~contexts/identity"
 import { usePeer } from "~contexts/peer"
 import { useRequest } from "~contexts/request"
@@ -52,7 +53,10 @@ export function SignRequest() {
         setSending(false)
         return
       }
-      const response = await sendToBackground<SendTransactionBody, SendTransactionResponse>({
+      const response = await sendToBackground<
+        SendTransactionBody,
+        SendTransactionResponse
+      >({
         name: "send-transaction",
         body: { peer: selectedPeer, identity: selectedIdentity, request }
       })
@@ -105,12 +109,14 @@ export function SignRequest() {
 
         {!selectedIdentity && (
           <div className="request-warning">
-            No identity selected. Click the FabricVault icon in your browser toolbar to open the extension and select one.
+            No identity selected. Click the FabricVault icon in your browser
+            toolbar to open the extension and select one.
           </div>
         )}
         {!selectedPeer && (
           <div className="request-warning">
-            No peer selected. Click the FabricVault icon in your browser toolbar to open the extension and select one.
+            No peer selected. Click the FabricVault icon in your browser toolbar
+            to open the extension and select one.
           </div>
         )}
 

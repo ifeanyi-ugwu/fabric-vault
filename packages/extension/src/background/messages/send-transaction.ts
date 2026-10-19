@@ -1,15 +1,24 @@
-import type { PlasmoMessaging } from "@plasmohq/messaging"
 import browser from "webextension-polyfill"
 
+import type { PlasmoMessaging } from "@plasmohq/messaging"
+
+import { pendingRequestResolvers } from "~background/state"
 import type { Identity } from "~contexts/identity"
 import type { Peer } from "~contexts/peer"
 import type { RequestData } from "~contexts/request"
-import { pendingRequestResolvers } from "~background/state"
 import { ensureWalletReady } from "~services/session"
 import { handleSendRequest } from "~services/transaction"
 
-export type RequestBody = { peer: Peer; identity: Identity; request: RequestData }
-export type ResponseBody = { success: boolean; message?: string; error?: string }
+export type RequestBody = {
+  peer: Peer
+  identity: Identity
+  request: RequestData
+}
+export type ResponseBody = {
+  success: boolean
+  message?: string
+  error?: string
+}
 
 const handler: PlasmoMessaging.MessageHandler<
   RequestBody,

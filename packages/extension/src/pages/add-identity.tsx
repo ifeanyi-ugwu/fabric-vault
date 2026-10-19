@@ -21,12 +21,24 @@ export function AddIdentity() {
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label htmlFor="label">Label</label>
-            <input type="text" id="label" name="label" placeholder="e.g. admin" required />
+            <input
+              type="text"
+              id="label"
+              name="label"
+              placeholder="e.g. admin"
+              required
+            />
           </div>
 
           <div className="form-group">
             <label htmlFor="organization">Organization MSP</label>
-            <input type="text" id="organization" name="organization" placeholder="e.g. Org1MSP" required />
+            <input
+              type="text"
+              id="organization"
+              name="organization"
+              placeholder="e.g. Org1MSP"
+              required
+            />
           </div>
 
           <div className="form-group">
@@ -50,9 +62,7 @@ export function AddIdentity() {
             />
           </div>
 
-          {errorMessage && (
-            <div className="error-message">{errorMessage}</div>
-          )}
+          {errorMessage && <div className="error-message">{errorMessage}</div>}
 
           <div className="form-actions">
             <Button

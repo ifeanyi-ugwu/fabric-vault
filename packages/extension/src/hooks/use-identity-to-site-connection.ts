@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react"
-import { sendToBackground } from "@plasmohq/messaging"
 import browser from "webextension-polyfill"
 
-import type { RequestBody as EmitEventBody } from "~background/messages/emit-event"
+import { sendToBackground } from "@plasmohq/messaging"
+
 import type { Identity } from "~/contexts/identity"
+import type { RequestBody as EmitEventBody } from "~background/messages/emit-event"
 
 export interface SiteIdentityConnection {
   identityLabel: string
@@ -40,7 +41,9 @@ export function useIdentityToSiteConnection() {
     }
 
     const loadConnectionsFromStorage = async () => {
-      const storedConnections = (await browser.storage.local.get("fabricVaultConnections"))["fabricVaultConnections"] as string | undefined
+      const storedConnections = (
+        await browser.storage.local.get("fabricVaultConnections")
+      )["fabricVaultConnections"] as string | undefined
       if (storedConnections) {
         try {
           const parsedConnections = JSON.parse(storedConnections) as Record<
@@ -113,7 +116,9 @@ export function useIdentityToSiteConnection() {
       setConnectedSites(newConnectedSites)
 
       const connectionsObject = Object.fromEntries(newConnectedSites)
-      await browser.storage.local.set({ fabricVaultConnections: JSON.stringify(connectionsObject) })
+      await browser.storage.local.set({
+        fabricVaultConnections: JSON.stringify(connectionsObject)
+      })
 
       sendToBackground<EmitEventBody>({
         name: "emit-event",

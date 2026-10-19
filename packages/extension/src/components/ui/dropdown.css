@@ -16,7 +16,9 @@
   color: var(--text-primary);
   cursor: pointer;
   outline: none;
-  transition: border-color var(--t-fast), background-color var(--t-fast);
+  transition:
+    border-color var(--t-fast),
+    background-color var(--t-fast);
 }
 
 .dropdown-trigger:hover {
@@ -58,13 +60,27 @@
 }
 
 @keyframes dropdown-show {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.dropdown-align-start  { left: 0; }
-.dropdown-align-center { left: 50%; transform: translateX(-50%); }
-.dropdown-align-end    { right: 0; left: auto; }
+.dropdown-align-start {
+  left: 0;
+}
+.dropdown-align-center {
+  left: 50%;
+  transform: translateX(-50%);
+}
+.dropdown-align-end {
+  right: 0;
+  left: auto;
+}
 
 .dropdown-label {
   padding: var(--space-2) var(--space-3);
@@ -88,7 +104,9 @@
   cursor: pointer;
   user-select: none;
   outline: none;
-  transition: background-color var(--t-fast), color var(--t-fast);
+  transition:
+    background-color var(--t-fast),
+    color var(--t-fast);
 }
 
 .dropdown-item:hover {

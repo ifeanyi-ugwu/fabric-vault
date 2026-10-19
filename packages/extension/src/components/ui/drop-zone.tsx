@@ -1,4 +1,4 @@
-import { useRef, useState, type DragEvent, type ChangeEvent } from "react"
+import { useRef, useState, type ChangeEvent, type DragEvent } from "react"
 
 interface DropZoneProps {
   accept?: string

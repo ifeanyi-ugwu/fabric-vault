@@ -27,7 +27,9 @@ async function isConnectedToIdentity(
 }
 
 async function getActiveIdentityLabel(): Promise<string | null> {
-  const identity = (await browser.storage.local.get("selectedIdentity"))["selectedIdentity"] as Identity | undefined
+  const identity = (await browser.storage.local.get("selectedIdentity"))[
+    "selectedIdentity"
+  ] as Identity | undefined
   return identity?.label || null
 }
 
@@ -63,7 +65,9 @@ async function determineAndValidateIdentity({
     }
   } else {
     // If no identity explicitly provided by dApp, use the currently active one
-    const activeIdentityPublicInfo = (await browser.storage.local.get("selectedIdentity"))["selectedIdentity"] as Identity | undefined
+    const activeIdentityPublicInfo = (
+      await browser.storage.local.get("selectedIdentity")
+    )["selectedIdentity"] as Identity | undefined
     if (activeIdentityPublicInfo) {
       identityToUseForConnection.label = activeIdentityPublicInfo.label
       identityToUseForConnection.mspId = activeIdentityPublicInfo.mspId
@@ -113,7 +117,12 @@ async function openAuthorizationPopup(
   }
 
   // Save request for the popup to consume
-  await sessionStore.set(`pendingRequest_${id}`, { id, payload: message, type, origin })
+  await sessionStore.set(`pendingRequest_${id}`, {
+    id,
+    payload: message,
+    type,
+    origin
+  })
 
   browser.windows.create({
     url: browser.runtime.getURL(`popup.html?requestId=${id}`),
@@ -214,7 +223,9 @@ async function handleSubscriptionRequest(
     origin
   })
 
-  const selectedPeer = (await browser.storage.local.get("selectedPeer"))["selectedPeer"] as Peer | undefined
+  const selectedPeer = (await browser.storage.local.get("selectedPeer"))[
+    "selectedPeer"
+  ] as Peer | undefined
   if (!selectedPeer || !selectedPeer.rpcUrl) {
     throw new Error(
       "No peer selected or peer RPC URL missing for subscription."

@@ -1,4 +1,5 @@
 import { useState } from "react"
+
 import { sendToBackground } from "@plasmohq/messaging"
 
 import { Button } from "~/components/ui/button"
@@ -28,8 +29,12 @@ export function ConnectRequest() {
       <div className="request-screen">
         <div className="request-brand">FabricVault</div>
         <div className="request-card">
-          <p className="request-error">{error || "No connection request to handle."}</p>
-          <Button fullWidth onClick={() => window.close()}>Close</Button>
+          <p className="request-error">
+            {error || "No connection request to handle."}
+          </p>
+          <Button fullWidth onClick={() => window.close()}>
+            Close
+          </Button>
         </div>
       </div>
     )
@@ -87,21 +92,28 @@ export function ConnectRequest() {
         </div>
 
         <h2 className="request-title">Connect request</h2>
-        <p className="request-desc">This site is asking to connect to your wallet.</p>
+        <p className="request-desc">
+          This site is asking to connect to your wallet.
+        </p>
 
         {selectedIdentity ? (
           <div className="request-identity-preview">
-            <div className="request-identity-label">{selectedIdentity.label}</div>
+            <div className="request-identity-label">
+              {selectedIdentity.label}
+            </div>
             <div className="request-identity-msp">{selectedIdentity.mspId}</div>
           </div>
         ) : (
           <div className="request-warning">
-            No identity selected. Click the FabricVault icon in your browser toolbar to open the extension and select one.
+            No identity selected. Click the FabricVault icon in your browser
+            toolbar to open the extension and select one.
           </div>
         )}
 
         <div className="request-permissions">
-          <p className="request-permissions-title">This will allow the site to:</p>
+          <p className="request-permissions-title">
+            This will allow the site to:
+          </p>
           <ul className="request-permissions-list">
             <li>View your identity label, certificate, and MSP ID</li>
             <li>Request your signature for transactions</li>
@@ -117,7 +129,10 @@ export function ConnectRequest() {
           </Button>
         ) : (
           <>
-            <Button variant="outline" onClick={handleReject} disabled={isSubmitting}>
+            <Button
+              variant="outline"
+              onClick={handleReject}
+              disabled={isSubmitting}>
               Reject
             </Button>
             <Button onClick={handleApprove} disabled={isSubmitting}>

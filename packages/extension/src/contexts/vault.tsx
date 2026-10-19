@@ -5,8 +5,9 @@ import {
   useEffect,
   useState
 } from "react"
-import { sendToBackground } from "@plasmohq/messaging"
 import browser from "webextension-polyfill"
+
+import { sendToBackground } from "@plasmohq/messaging"
 
 import type {
   RequestBody as ChangePasswordBody,
@@ -44,9 +45,11 @@ export const VaultProvider = ({ children }) => {
 
   const checkUnlockedStatus = useCallback(async () => {
     try {
-      const response = await sendToBackground<never, GetUnlockedStatusResponse>({
-        name: "get-unlocked-status"
-      })
+      const response = await sendToBackground<never, GetUnlockedStatusResponse>(
+        {
+          name: "get-unlocked-status"
+        }
+      )
       setIsUnlocked(response?.isUnlocked || false)
       setIsInitialized(true)
     } catch (error) {
@@ -78,7 +81,10 @@ export const VaultProvider = ({ children }) => {
 
   const createVault = useCallback(
     async (password: string) => {
-      const response = await sendToBackground<CreateVaultBody, CreateVaultResponse>({
+      const response = await sendToBackground<
+        CreateVaultBody,
+        CreateVaultResponse
+      >({
         name: "create-vault",
         body: { password }
       })
@@ -93,7 +99,10 @@ export const VaultProvider = ({ children }) => {
 
   const changePassword = useCallback(
     async (newPassword: string) => {
-      const response = await sendToBackground<ChangePasswordBody, ChangePasswordResponse>({
+      const response = await sendToBackground<
+        ChangePasswordBody,
+        ChangePasswordResponse
+      >({
         name: "change-password",
         body: { newPassword }
       })

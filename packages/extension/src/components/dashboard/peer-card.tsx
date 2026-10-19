@@ -56,7 +56,10 @@ export const PeerCard = ({
       <div className="peer-actions">
         <Button
           size="small"
-          onClick={(e) => { e.stopPropagation(); onEdit(peer) }}>
+          onClick={(e) => {
+            e.stopPropagation()
+            onEdit(peer)
+          }}>
           Edit
         </Button>
         <Button

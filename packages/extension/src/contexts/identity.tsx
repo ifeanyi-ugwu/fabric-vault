@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react"
-import { sendToBackground } from "@plasmohq/messaging"
 import browser from "webextension-polyfill"
+
+import { sendToBackground } from "@plasmohq/messaging"
 
 import type {
   RequestBody as AddIdentityBody,
@@ -12,6 +13,7 @@ import type {
   RequestBody as RemoveIdentityBody,
   ResponseBody as RemoveIdentityResponse
 } from "~background/messages/remove-identity"
+
 import { useVault } from "./vault"
 
 export interface Identity {
@@ -54,9 +56,11 @@ export const IdentityProvider = ({ children }) => {
     const loadIdentities = async () => {
       if (isInitialized && isUnlocked) {
         try {
-          const response = await sendToBackground<never, GetIdentitiesResponse>({
-            name: "get-identities"
-          })
+          const response = await sendToBackground<never, GetIdentitiesResponse>(
+            {
+              name: "get-identities"
+            }
+          )
           if (response?.success && Array.isArray(response.identities)) {
             setIdentities(response.identities as Identity[])
             setIsReady(true)
@@ -98,7 +102,10 @@ export const IdentityProvider = ({ children }) => {
 
   const addIdentity = async (identity: Identity, privateKey: string) => {
     try {
-      const response = await sendToBackground<AddIdentityBody, AddIdentityResponse>({
+      const response = await sendToBackground<
+        AddIdentityBody,
+        AddIdentityResponse
+      >({
         name: "add-identity",
         body: { identity: { ...identity, privateKey } }
       })
@@ -114,7 +121,10 @@ export const IdentityProvider = ({ children }) => {
 
   const removeIdentity = async (identity: Identity) => {
     try {
-      const response = await sendToBackground<RemoveIdentityBody, RemoveIdentityResponse>({
+      const response = await sendToBackground<
+        RemoveIdentityBody,
+        RemoveIdentityResponse
+      >({
         name: "remove-identity",
         body: { label: identity.label }
       })

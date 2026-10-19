@@ -7,7 +7,9 @@ export async function getStoredConnections(): Promise<
   Map<string, SiteIdentityConnection[]>
 > {
   try {
-    const storedConnections = (await browser.storage.local.get("fabricVaultConnections"))["fabricVaultConnections"] as string | undefined
+    const storedConnections = (
+      await browser.storage.local.get("fabricVaultConnections")
+    )["fabricVaultConnections"] as string | undefined
     if (storedConnections) {
       return new Map(Object.entries(JSON.parse(storedConnections)))
     }
@@ -38,11 +40,15 @@ export const emitEventToDapp = async ({
 
     for (const port of connections.values()) {
       const origin = (port.sender as any)?.origin as string | undefined
-      const allowedIdentities = origin ? (storedConnections.get(origin) ?? []) : []
+      const allowedIdentities = origin
+        ? storedConnections.get(origin) ?? []
+        : []
 
       const filtered = Array.isArray(result)
         ? result.filter((identity: { label?: string }) =>
-            allowedIdentities.some((conn) => conn.identityLabel === identity.label)
+            allowedIdentities.some(
+              (conn) => conn.identityLabel === identity.label
+            )
           )
         : []
 

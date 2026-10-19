@@ -48,9 +48,7 @@ export function HeaderBar() {
           <Dropdown.Content align="end">
             {peers.length > 0 ? (
               peers.map((peer) => (
-                <Dropdown.Item
-                  key={peer.id}
-                  onSelect={() => switchPeer(peer)}>
+                <Dropdown.Item key={peer.id} onSelect={() => switchPeer(peer)}>
                   <div className="dropdown-item-content">
                     <span>{peer.name}</span>
                     {selectedPeer?.id === peer.id && (

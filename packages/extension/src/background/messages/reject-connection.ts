@@ -1,5 +1,6 @@
-import type { PlasmoMessaging } from "@plasmohq/messaging"
 import browser from "webextension-polyfill"
+
+import type { PlasmoMessaging } from "@plasmohq/messaging"
 
 import { pendingRequestResolvers } from "~background/state"
 

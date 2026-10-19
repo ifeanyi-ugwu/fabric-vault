@@ -31,10 +31,7 @@ export const Identities = () => {
     <div>
       <div className="section-header">
         <h3>Your Identities</h3>
-        <Button
-          variant="secondary"
-          size="small"
-          onClick={openAddIdentity}>
+        <Button variant="secondary" size="small" onClick={openAddIdentity}>
           Add Identity
         </Button>
       </div>

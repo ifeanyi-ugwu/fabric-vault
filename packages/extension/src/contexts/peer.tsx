@@ -6,8 +6,9 @@ import {
   useState,
   type ReactNode
 } from "react"
-import { sendToBackground } from "@plasmohq/messaging"
 import browser from "webextension-polyfill"
+
+import { sendToBackground } from "@plasmohq/messaging"
 
 import type { RequestBody as EmitEventBody } from "~background/messages/emit-event"
 

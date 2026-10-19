@@ -7,10 +7,10 @@ export type ResponseBody =
   | { success: true; identities: unknown[] }
   | { success: false; error: string }
 
-const handler: PlasmoMessaging.MessageHandler<
-  never,
-  ResponseBody
-> = async (_req, res) => {
+const handler: PlasmoMessaging.MessageHandler<never, ResponseBody> = async (
+  _req,
+  res
+) => {
   if (!(await ensureWalletReady())) {
     res.send({ success: false, error: "Wallet is locked." })
     return
