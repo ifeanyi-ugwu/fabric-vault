@@ -5,6 +5,8 @@ export { FabricVaultClient } from "./client"
 export type {
   Identity,
   ChaincodeRef,
+  PeerRequest,
+  PeerInfo,
   TransactionParams,
   SubscribeBlockParams,
   SubscribeChaincodeParams,

@@ -4,7 +4,7 @@ import { sessionStore } from "~lib/storage"
 
 export interface RequestData {
   id: string
-  type: "sign" | "connect"
+  type: "sign" | "connect" | "peer"
   payload: any
   origin: string
 }

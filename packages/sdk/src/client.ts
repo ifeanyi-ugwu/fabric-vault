@@ -17,6 +17,22 @@ export interface ChaincodeRef {
   contract?: string
 }
 
+export interface PeerRequest {
+  /** Shown to the user. */
+  name: string
+  /** The Fabric peer the gateway connects to, as `host:port`. */
+  endpoint: string
+  /** The gateway's WebSocket URL: `wss://`, or `ws://` for localhost. */
+  rpcUrl: string
+  /** PEM root certificate for the peer's TLS, when it is not publicly trusted. */
+  tlsRootCert?: string
+}
+
+export interface PeerInfo {
+  name: string
+  endpoint: string
+}
+
 export interface TransactionParams {
   channel: string
   chaincode: string | ChaincodeRef
@@ -62,6 +78,18 @@ export class FabricVaultClient {
   /** Returns the currently connected peer endpoint. */
   getPeer() {
     return this.provider.request<string>({ method: "fabric_peer" })
+  }
+
+  /**
+   * Ask the user to add this peer and use it. The user approves in a prompt
+   * each time, so it resolves only once they have, and rejects if they decline.
+   * Requires `connect()` first. A peer the user already has is selected as is.
+   */
+  requestPeer(peer: PeerRequest) {
+    return this.provider.request<PeerInfo>({
+      method: "fabric_requestPeer",
+      params: peer as unknown as Record<string, unknown>,
+    })
   }
 
   /** Read-only query — no ledger state change. */

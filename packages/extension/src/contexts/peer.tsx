@@ -75,6 +75,36 @@ export function PeerProvider({ children }: { children: ReactNode }) {
     }
   }, [selectedPeer])
 
+  // The background adds and selects a peer when the user approves a site's
+  // request. Open windows follow it. An update that changes nothing keeps the
+  // current state, so this and the effects above do not feed each other.
+  useEffect(() => {
+    const onChanged = (
+      changes: Record<string, browser.Storage.StorageChange>,
+      area: string
+    ) => {
+      if (area !== "local") return
+      const keep =
+        <T,>(next: T) =>
+        (previous: T) =>
+          JSON.stringify(previous) === JSON.stringify(next) ? previous : next
+      if (changes[availablePeersStorageKey]) {
+        setPeers(
+          keep((changes[availablePeersStorageKey].newValue ?? []) as Peer[])
+        )
+      }
+      if (changes[selectedPeerStorageKey]) {
+        setSelectedPeer(
+          keep(
+            (changes[selectedPeerStorageKey].newValue ?? null) as Peer | null
+          )
+        )
+      }
+    }
+    browser.storage.onChanged.addListener(onChanged)
+    return () => browser.storage.onChanged.removeListener(onChanged)
+  }, [])
+
   const addPeer = useCallback((newPeer: Omit<Peer, "id">) => {
     const peerToAdd: Peer = {
       ...newPeer,

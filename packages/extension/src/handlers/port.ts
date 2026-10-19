@@ -13,10 +13,12 @@ import type { Peer } from "~contexts/peer"
 import { SigningSession } from "~lib/fabric/session"
 import { assertSecureGatewayUrl } from "~lib/gateway-url"
 import { getPortOrigin } from "~lib/origin"
+import { parsePeerRequest } from "~lib/peer-request"
 import { buildGatewayParams } from "~lib/request-params"
 import { sessionStore } from "~lib/storage"
 import {
   getStoredConnections,
+  isConnected,
   isConnectedToIdentity
 } from "~services/connection"
 import {
@@ -184,6 +186,20 @@ async function handlePortRequest(message: any, port: Browser.Runtime.Port) {
     case "fabric_identities":
       return await handleIdentitiesRequest(port)
 
+    case "fabric_peer": {
+      const selectedPeer = (await browser.storage.local.get("selectedPeer"))[
+        "selectedPeer"
+      ] as Peer | undefined
+      if (!selectedPeer) throw new Error("No peer is selected.")
+      return selectedPeer.endpoint
+    }
+
+    case "fabric_requestPeer":
+      if (!(await isConnected(origin))) {
+        throw new Error("Connect to the wallet before requesting a peer.")
+      }
+      return await requestPeer(port, message, origin!)
+
     case "fabric_evaluateTransaction":
     case "fabric_submitTransaction":
     case "fabric_submitAsync":
@@ -210,6 +226,32 @@ async function handlePortRequest(message: any, port: Browser.Runtime.Port) {
 
     default:
       throw new Error(`Unknown method: ${method}`)
+  }
+}
+
+// One peer request per site at a time. The window ends the block if a popup is
+// closed without an answer, which leaves its request unsettled.
+const PEER_REQUEST_WINDOW_MS = 2 * 60 * 1000
+const openPeerRequests = new Map<string, number>()
+
+async function requestPeer(
+  port: Browser.Runtime.Port,
+  message: any,
+  origin: string
+) {
+  if ((openPeerRequests.get(origin) ?? 0) > Date.now()) {
+    throw new Error("A peer request from this site is already open.")
+  }
+  const peer = parsePeerRequest(message.params)
+  openPeerRequests.set(origin, Date.now() + PEER_REQUEST_WINDOW_MS)
+  try {
+    return await openAuthorizationPopup(
+      port,
+      { id: message.id, method: message.method, params: peer },
+      "peer"
+    )
+  } finally {
+    openPeerRequests.delete(origin)
   }
 }
 
