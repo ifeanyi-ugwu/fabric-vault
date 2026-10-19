@@ -98,7 +98,7 @@ export class FabricService {
     const submittedTransaction = await this.gateway
       .getNetwork(channelName)
       .getContract(chaincodeName, contractName)
-      .submitAsync(fn, { arguments: { ...args } });
+      .submitAsync(fn, { arguments: args });
 
     return submittedTransaction.getTransactionId();
   }
