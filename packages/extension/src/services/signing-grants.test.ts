@@ -98,4 +98,66 @@ describe("SigningGrants", () => {
     assert.deepEqual(grants.consume("OTHER")?.context, { call: "read" })
     assert.deepEqual(grants.consume("CERT")?.context, { call: "transfer" })
   })
+
+  describe("live and use", () => {
+    it("lists a certificate's live grants, earliest-expiring first", () => {
+      const { grants } = setup()
+      grants.grant({
+        ...base,
+        origin: "https://late.example",
+        ttlMs: 5000,
+        count: 1
+      })
+      grants.grant({
+        ...base,
+        origin: "https://soon.example",
+        ttlMs: 1000,
+        count: 1
+      })
+      grants.grant({ ...base, certificate: "OTHER", count: 1 })
+      assert.deepEqual(
+        grants.live("CERT").map((grant) => grant.origin),
+        ["https://soon.example", "https://late.example"]
+      )
+    })
+
+    it("leaves out grants that are spent or expired", () => {
+      const { grants, advance } = setup()
+      grants.grant({ ...base, origin: "https://spent.example", count: 1 })
+      grants.grant({
+        ...base,
+        origin: "https://old.example",
+        ttlMs: 10,
+        count: 1
+      })
+      grants.grant({ ...base, origin: "https://fresh.example", count: 1 })
+      const spent = grants
+        .live("CERT")
+        .find((grant) => grant.origin === "https://spent.example")!
+      grants.use(spent)
+      advance(11)
+      assert.deepEqual(
+        grants.live("CERT").map((grant) => grant.origin),
+        ["https://fresh.example"]
+      )
+    })
+
+    it("spends only the grant it is given", () => {
+      const { grants } = setup()
+      grants.grant({ ...base, origin: "https://a.example", count: 1 })
+      grants.grant({
+        ...base,
+        origin: "https://b.example",
+        ttlMs: 2000,
+        count: 1
+      })
+      const [first, second] = grants.live("CERT")
+      grants.use(second)
+      assert.deepEqual(
+        grants.live("CERT").map((grant) => grant.origin),
+        ["https://a.example"]
+      )
+      assert.equal(first.origin, "https://a.example")
+    })
+  })
 })
