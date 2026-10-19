@@ -10,33 +10,16 @@ import {
 } from "~background/state"
 import type { Identity } from "~contexts/identity"
 import type { Peer } from "~contexts/peer"
+import { assertSecureGatewayUrl } from "~lib/gateway-url"
+import { getPortOrigin } from "~lib/origin"
+import { buildGatewayParams } from "~lib/request-params"
 import { sessionStore } from "~lib/storage"
-import { getStoredConnections } from "~services/connection"
+import {
+  getStoredConnections,
+  isConnectedToIdentity
+} from "~services/connection"
+import { SigningGrants } from "~services/signing-grants"
 import { handleSignRequest } from "~services/wallet"
-
-// MessageSender.origin is absent from webextension-polyfill's types, and a
-// content-script port always carries the page URL, so derive it from there.
-function getPortOrigin(port: Browser.Runtime.Port): string | undefined {
-  const url = port.sender?.url
-  if (!url) return undefined
-  try {
-    return new URL(url).origin
-  } catch {
-    return undefined
-  }
-}
-
-async function isConnectedToIdentity(
-  origin: string | undefined,
-  identityLabel: string | undefined
-): Promise<boolean> {
-  if (!origin) return false
-  const storedConnections = await getStoredConnections()
-  const connectionsForOrigin = storedConnections.get(origin)
-  return !!connectionsForOrigin?.some(
-    (connection) => connection.identityLabel === identityLabel
-  )
-}
 
 async function getActiveIdentityLabel(): Promise<string | null> {
   const identity = (await browser.storage.local.get("selectedIdentity"))[
@@ -223,6 +206,25 @@ async function handlePortRequest(message: any, port: Browser.Runtime.Port) {
   }
 }
 
+// A subscription starts with one signed event request.
+const SUBSCRIBE_SIGNATURES = 1
+const SIGNATURE_MARGIN = 1
+const SUBSCRIBE_TIMEOUT_MS = 30 * 1000
+
+// The socket for a gateway is shared by every site that subscribes through
+// it, so signing rights are tracked per socket and carry the site that
+// earned them.
+const subscriptionSigningGrants = new WeakMap<WebSocket, SigningGrants>()
+
+function signingGrantsFor(ws: WebSocket): SigningGrants {
+  let grants = subscriptionSigningGrants.get(ws)
+  if (!grants) {
+    grants = new SigningGrants()
+    subscriptionSigningGrants.set(ws, grants)
+  }
+  return grants
+}
+
 async function handleSubscriptionRequest(
   message: any,
   port: Browser.Runtime.Port,
@@ -243,6 +245,7 @@ async function handleSubscriptionRequest(
       "No peer selected or peer RPC URL missing for subscription."
     )
   }
+  assertSecureGatewayUrl(selectedPeer.rpcUrl)
 
   // Get or create WebSocket connection for this peer
   let socket = activeSubscriptionWebSockets.get(selectedPeer.rpcUrl)
@@ -261,6 +264,18 @@ async function handleSubscriptionRequest(
 
   // Narrowing on `socket` does not carry into the promise callback below.
   const ws = socket
+
+  // The gateway signs the event request when a subscription starts. The
+  // grant lets this socket sign for the subscribing site's identity during
+  // that request and at no other time.
+  if (method === "fabric_subscribe") {
+    signingGrantsFor(ws).grant({
+      certificate: identityForSubscription.certificate!,
+      origin,
+      count: SUBSCRIBE_SIGNATURES + SIGNATURE_MARGIN,
+      ttlMs: SUBSCRIBE_TIMEOUT_MS
+    })
+  }
 
   const requestId = Math.random().toString(36).substring(2)
 
@@ -302,21 +317,21 @@ async function handleSubscriptionRequest(
       // This block will only execute if handleResponse hasn't been called yet for this requestId
       ws.removeEventListener("message", handleResponse)
       reject(new Error(`${method} request timed out.`))
-    }, 30000)
+    }, SUBSCRIBE_TIMEOUT_MS)
 
     ws.addEventListener("message", handleResponse)
     ws.send(
       JSON.stringify({
         jsonrpc: "2.0",
         method: method,
-        params: {
-          peer: selectedPeer,
-          ...(message.params || {}),
-          identity: {
-            mspId: identityForSubscription.mspId,
-            certificate: identityForSubscription.certificate
-          }
-        },
+        params: buildGatewayParams(
+          message.params,
+          {
+            mspId: identityForSubscription.mspId!,
+            certificate: identityForSubscription.certificate!
+          },
+          selectedPeer
+        ),
         id: requestId
       })
     )
@@ -357,13 +372,19 @@ async function createWebSocketConnection(
 
     // Handle signDigest requests from the server via this WS
     if (message.method === "signDigest" && message.params?.digest) {
-      const signResponse = await handleSignRequest(
-        {
-          digest: message.params.digest,
-          certificate: message.params.certificate
-        },
-        origin
-      )
+      const grant = signingGrantsFor(ws).consume(message.params.certificate)
+      const signResponse = grant
+        ? await handleSignRequest(
+            {
+              digest: message.params.digest,
+              certificate: message.params.certificate
+            },
+            grant.origin
+          )
+        : {
+            success: false,
+            error: "No subscription request covers this signature."
+          }
 
       if (signResponse.success) {
         ws?.send(
