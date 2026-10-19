@@ -74,8 +74,8 @@ The extension records the approved call (channel, chaincode, contract, function,
 
 | `kind` | Checks | Recorded |
 | --- | --- | --- |
-| `proposal` | Channel header type is `ENDORSER_TRANSACTION`. `channel_id` equals the approved channel. `ChaincodeID.name` equals the approved chaincode. The first argument equals the function, prefixed `contract:` when a contract is set, and the remaining arguments equal the approved arguments byte for byte. The creator's `mspid` and certificate equal the approved identity. The transient map is empty. | `tx_id`, channel, creator |
-| `transaction` | `channel_id`, `tx_id` and creator equal the recorded proposal. Every action's `chaincode_proposal_payload` decodes to the approved chaincode and arguments. | none |
+| `proposal` | Channel header type is `ENDORSER_TRANSACTION`. `tx_id` equals the hex SHA-256 of the nonce followed by the creator. `channel_id` equals the approved channel. `ChaincodeID.name` equals the approved chaincode. The first argument equals the function, prefixed `contract:` when a contract is set, and the remaining arguments equal the approved arguments byte for byte. The creator's `mspid` and certificate equal the approved identity. The transient map is empty. | `tx_id`, channel, creator |
+| `transaction` | `channel_id`, `tx_id` and creator equal the recorded proposal. Every action's `chaincode_proposal_payload` decodes to the approved chaincode and arguments. Every action's `proposal_hash` equals the SHA-256 of the signed proposal's channel header, its signature header and that payload, which ties the endorsed transaction to the proposal's nonce. | none |
 | `commit` | `channel_id`, `transaction_id` and `identity` equal the recorded proposal. | none |
 | `chaincodeEvents` | `channel_id` equals the subscription's channel, `chaincode_id` equals the subscription's chaincode, `identity` equals the approved identity. | none |
 | `blockEvents` | Channel header type is `DELIVER_SEEK_INFO`. `channel_id` equals the subscription's channel and the creator equals the approved identity. | none |
@@ -165,19 +165,25 @@ C over A and B trades extension complexity for removing the gateway from the tru
 
 **Still trusted**
 - The gateway sees every request, argument and result and can refuse to relay.
-- The extension cannot check the write set and response that peers return, and it signs the endorsed transaction without them. Whether the channel's endorsement policy and validation reject a tampered write set has not been verified.
+- The extension cannot read the write set and response that peers return, and it signs the endorsed transaction without judging them. Their integrity rests on the endorsements. On a Fabric 2.5.16 test network, an endorsed transaction with one byte of its `ChaincodeAction` changed and a valid client signature was committed as invalid with `ENDORSEMENT_POLICY_FAILURE`, and the ledger kept its previous state. Other kinds of tampering, other Fabric versions and other endorsement policies have not been tested.
 - The result of an `evaluate` is unsigned and unverified. A client must not present it as verified.
 
-**Open verification**
-- Whether `proposal_hash` in the endorsed `ProposalResponsePayload` equals SHA-256 of the channel header, signature header and stripped chaincode proposal payload, and whether `tx_id` equals the hex SHA-256 of nonce and creator. Both would add a cryptographic binding between the proposal and the transaction. Neither is checked until it has been confirmed against a running network.
-- The per-method signature counts used by the grants, and the commit of a tampered transaction, against a running network.
+**Verified against a running network**
+
+Run on a Fabric 2.5.16 test network (two organizations, the `asset-transfer-basic` chaincode):
+- A call signs exactly this many requests: evaluate 1, `submitTransaction` 3, `submitAsync` 2, chaincode event subscription 1, block event subscription 1.
+- The reader and verifier accept the bytes of a real proposal, endorsed transaction and commit status request, and their digests equal the client library's.
+- `tx_id` equals the hex SHA-256 of nonce and creator. `proposal_hash` equals the SHA-256 of the channel header, the signature header and the stripped chaincode proposal payload. It does not equal the SHA-256 of the serialized `Header` followed by the payload.
+- A simulated extension drove a gateway over WebSocket with `signRequest` for evaluate, submit, `submitAsync`, a chaincode event subscription and a block event subscription, signing with the identity's key against the real peer. A call the gateway built differently from the approved call was refused at the proposal and never endorsed. A client that advertised no capability completed a submit with `signDigest`.
+
+Not yet verified: the extension itself in Chrome and Firefox, private data and transient data, and a channel with a different endorsement policy.
 
 ## Action items
 
-1. [ ] Hand-written reader and the five parsers, with tests built from `@hyperledger/fabric-protos`.
-2. [ ] Verifier: the checks above, with the recorded proposal state.
-3. [ ] Gateway: `signRequest` for connections that advertise it, `signDigest` otherwise.
+1. [x] Hand-written reader and the five parsers, with tests built from `@hyperledger/fabric-protos`.
+2. [x] Verifier: the checks above, with the recorded proposal state, including the `tx_id` and `proposal_hash` bindings.
+3. [x] Gateway: `signRequest` for connections that advertise it, `signDigest` otherwise.
 4. [ ] Extension: advertise the capability, route `signRequest` through the verifier, refuse `signDigest` unless the peer sets `legacySigning`.
 5. [ ] Popup: declared call, identity and peer.
-6. [ ] Run the checks in "Open verification" against a local Fabric network, and add the optional `proposal_hash` and `tx_id` checks if they hold.
+6. [x] Check the counts, bindings and tampering behaviour against a local Fabric network.
 7. [ ] Remove `legacySigning` and the `signDigest` handler.
