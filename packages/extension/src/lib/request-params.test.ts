@@ -51,8 +51,14 @@ describe("buildGatewayParams", () => {
 
   it("accepts a request with no dApp params", () => {
     assert.deepEqual(buildGatewayParams(undefined, identity, peer), {
+      capabilities: ["signRequest"],
       identity,
       peer
     })
+  })
+
+  it("advertises signRequest whatever the dApp supplies", () => {
+    const params = buildGatewayParams({ capabilities: [] }, identity, peer)
+    assert.deepEqual(params.capabilities, ["signRequest"])
   })
 })

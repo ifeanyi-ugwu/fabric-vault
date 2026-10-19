@@ -11,8 +11,11 @@ Install the extension in your browser and configure it with at least one peer an
 **Adding a peer** (Dashboard → Peers tab):
 - Name — e.g. `peer0.org1.example.com`
 - Endpoint — e.g. `localhost:7051`
-- RPC URL — e.g. `ws://localhost:7545` (self-hosted) or `wss://hyperledger-fabric-json-rpc-gateway.onrender.com` (public, free plan)
+- RPC URL — e.g. `ws://localhost:7545` (self-hosted) or `wss://hyperledger-fabric-json-rpc-gateway.onrender.com` (public, free plan). It must be `wss://`, except `ws://` is accepted for `localhost`, `127.0.0.1` and `[::1]`.
 - TLS CA Certificate — import the `.crt` file for the peer
+- Allow legacy signing — leave off. Turn it on only for a gateway older than the `signRequest` protocol, such as `hyperledger-fabric-json-rpc-gateway` 1.2.1 and earlier, which asks the extension to sign a hash it cannot check. While a request is open, such a gateway can obtain a signature over anything.
+
+The extension shows each transaction's channel, chaincode, function, arguments, signing identity and peer before you approve it, and with a gateway that sends `signRequest` it signs only a request that matches what you approved.
 
 For Fabric Samples users, the TLS CA cert for `peer0.org1.example.com` is at:
 ```

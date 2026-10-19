@@ -6,6 +6,7 @@ import { Button } from "~/components/ui/button"
 import { DropZone } from "~/components/ui/drop-zone"
 import { Modal } from "~/components/ui/modal"
 import { usePeer, type Peer } from "~/contexts/peer"
+import { isSecureGatewayUrl } from "~lib/gateway-url"
 
 import { Empty } from "../empty"
 import { PeerCard } from "../peer-card"
@@ -108,6 +109,9 @@ const PeerForm = ({ initialPeer, onSubmit, onCancel }: PeerFormProps) => {
     initialPeer?.tlsRootCert ?? null
   )
   const [tlsFileName, setTlsFileName] = useState<string | null>(null)
+  const [legacySigning, setLegacySigning] = useState(
+    initialPeer?.legacySigning ?? false
+  )
   const [error, setError] = useState<string | null>(null)
 
   const isEditing = initialPeer !== undefined
@@ -128,12 +132,18 @@ const PeerForm = ({ initialPeer, onSubmit, onCancel }: PeerFormProps) => {
       return
     }
 
+    if (!isSecureGatewayUrl(rpcUrl.trim())) {
+      setError("RPC URL must use wss://. ws:// is accepted only for localhost.")
+      return
+    }
+
     onSubmit({
       id: initialPeer?.id ?? crypto.randomUUID(),
       name: peerName,
       endpoint: peerEndpoint,
       rpcUrl,
-      tlsRootCert
+      tlsRootCert,
+      legacySigning
     })
   }
 
@@ -184,6 +194,25 @@ const PeerForm = ({ initialPeer, onSubmit, onCancel }: PeerFormProps) => {
           onChange={handleTlsFile}
           placeholder="Drop .crt or .pem here, or click to browse"
         />
+      </div>
+
+      <div className="form-group">
+        <label htmlFor="legacySigning">
+          <input
+            type="checkbox"
+            id="legacySigning"
+            checked={legacySigning}
+            onChange={(e) => setLegacySigning(e.target.checked)}
+          />{" "}
+          Allow legacy signing
+        </label>
+        <p>
+          <small>
+            For a gateway that asks for a hash instead of the request. The
+            extension cannot check a hash, so while a request is open that
+            gateway can obtain a signature over anything.
+          </small>
+        </p>
       </div>
 
       <div className="form-actions">

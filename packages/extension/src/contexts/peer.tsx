@@ -21,6 +21,12 @@ export interface Peer {
   endpoint: string
   rpcUrl: string
   tlsRootCert: string | null
+  /**
+   * Accept a gateway that asks for digests (`signDigest`). The extension cannot
+   * check what a digest covers, so this is off unless the gateway predates
+   * `signRequest`.
+   */
+  legacySigning?: boolean
 }
 
 interface PeerContextType {

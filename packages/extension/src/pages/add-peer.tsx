@@ -15,6 +15,7 @@ export function AddPeer() {
   const [rpcUrl, setRpcUrl] = useState("")
   const [tlsRootCert, setTlsRootCert] = useState<string | null>(null)
   const [tlsFileName, setTlsFileName] = useState<string | null>(null)
+  const [legacySigning, setLegacySigning] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const handleTlsFile = (file: File) => {
@@ -46,7 +47,13 @@ export function AddPeer() {
       setError("RPC URL must use wss://. ws:// is accepted only for localhost.")
       return
     }
-    addPeer({ name: peerName, endpoint: peerEndpoint, rpcUrl, tlsRootCert })
+    addPeer({
+      name: peerName,
+      endpoint: peerEndpoint,
+      rpcUrl,
+      tlsRootCert,
+      legacySigning
+    })
     window.history.length > 1 ? navigate({ to: "/dashboard" }) : window.close()
   }
 
@@ -94,6 +101,24 @@ export function AddPeer() {
               onChange={handleTlsFile}
               placeholder="Drop .crt or .pem here, or click to browse"
             />
+          </div>
+          <div className="form-group">
+            <label htmlFor="legacySigning">
+              <input
+                type="checkbox"
+                id="legacySigning"
+                checked={legacySigning}
+                onChange={(e) => setLegacySigning(e.target.checked)}
+              />{" "}
+              Allow legacy signing
+            </label>
+            <p>
+              <small>
+                For a gateway that asks for a hash instead of the request. The
+                extension cannot check a hash, so while a request is open that
+                gateway can obtain a signature over anything.
+              </small>
+            </p>
           </div>
           <div className="form-actions">
             <Button variant="outline" onClick={handleCancel}>

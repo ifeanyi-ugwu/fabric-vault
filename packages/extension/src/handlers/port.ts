@@ -10,6 +10,7 @@ import {
 } from "~background/state"
 import type { Identity } from "~contexts/identity"
 import type { Peer } from "~contexts/peer"
+import { SigningSession } from "~lib/fabric/session"
 import { assertSecureGatewayUrl } from "~lib/gateway-url"
 import { getPortOrigin } from "~lib/origin"
 import { buildGatewayParams } from "~lib/request-params"
@@ -18,6 +19,11 @@ import {
   getStoredConnections,
   isConnectedToIdentity
 } from "~services/connection"
+import {
+  answerSigningRequest,
+  approvedSubscription,
+  type SigningContext
+} from "~services/signing"
 import { SigningGrants } from "~services/signing-grants"
 import { handleSignRequest } from "~services/wallet"
 
@@ -214,12 +220,15 @@ const SUBSCRIBE_TIMEOUT_MS = 30 * 1000
 // The socket for a gateway is shared by every site that subscribes through
 // it, so signing rights are tracked per socket and carry the site that
 // earned them.
-const subscriptionSigningGrants = new WeakMap<WebSocket, SigningGrants>()
+const subscriptionSigningGrants = new WeakMap<
+  WebSocket,
+  SigningGrants<SigningContext>
+>()
 
-function signingGrantsFor(ws: WebSocket): SigningGrants {
+function signingGrantsFor(ws: WebSocket): SigningGrants<SigningContext> {
   let grants = subscriptionSigningGrants.get(ws)
   if (!grants) {
-    grants = new SigningGrants()
+    grants = new SigningGrants<SigningContext>()
     subscriptionSigningGrants.set(ws, grants)
   }
   return grants
@@ -273,7 +282,16 @@ async function handleSubscriptionRequest(
       certificate: identityForSubscription.certificate!,
       origin,
       count: SUBSCRIBE_SIGNATURES + SIGNATURE_MARGIN,
-      ttlMs: SUBSCRIBE_TIMEOUT_MS
+      ttlMs: SUBSCRIBE_TIMEOUT_MS,
+      context: {
+        session: new SigningSession(
+          approvedSubscription(message.params, {
+            mspId: identityForSubscription.mspId!,
+            certificate: identityForSubscription.certificate!
+          })
+        ),
+        allowLegacyDigest: selectedPeer.legacySigning === true
+      }
     })
   }
 
@@ -370,42 +388,15 @@ async function createWebSocketConnection(
     const notification = JSON.parse(event.data)
     const message = notification
 
-    // Handle signDigest requests from the server via this WS
-    if (message.method === "signDigest" && message.params?.digest) {
-      const grant = signingGrantsFor(ws).consume(message.params.certificate)
-      const signResponse = grant
-        ? await handleSignRequest(
-            {
-              digest: message.params.digest,
-              certificate: message.params.certificate
-            },
-            grant.origin
-          )
-        : {
-            success: false,
-            error: "No subscription request covers this signature."
-          }
-
-      if (signResponse.success) {
-        ws?.send(
-          JSON.stringify({
-            jsonrpc: "2.0",
-            result: { signature: signResponse.signature },
-            id: message.id
-          })
-        )
-      } else {
-        ws?.send(
-          JSON.stringify({
-            jsonrpc: "2.0",
-            error: {
-              code: -32001,
-              message: signResponse.error || "Signing failed"
-            },
-            id: message.id
-          })
-        )
-      }
+    // Handle signing requests from the gateway via this WS
+    const reply = await answerSigningRequest(
+      message,
+      signingGrantsFor(ws),
+      (digest, certificate, signingOrigin) =>
+        handleSignRequest({ digest, certificate }, signingOrigin)
+    )
+    if (reply) {
+      ws?.send(JSON.stringify({ jsonrpc: "2.0", id: message.id, ...reply }))
     }
     // Handle subscription notifications
     else if (

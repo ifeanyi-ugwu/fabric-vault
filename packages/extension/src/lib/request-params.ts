@@ -22,6 +22,8 @@ export function buildGatewayParams(
 ): Record<string, unknown> {
   return {
     ...(dappParams ?? {}),
+    // Tells the gateway to send `signRequest`, which the extension can check.
+    capabilities: ["signRequest"],
     identity: { mspId: identity.mspId, certificate: identity.certificate },
     peer: {
       name: peer.name,
