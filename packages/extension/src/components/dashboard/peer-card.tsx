@@ -52,6 +52,7 @@ export const PeerCard = ({
         <p className="peer-endpoint">Endpoint: {peer.endpoint}</p>
         {<p className="peer-rpc-url">RPC URL: {peer.rpcUrl}</p>}
         {peer.tlsRootCert && <p className="peer-cert">Has Cert</p>}
+        {peer.legacySigning && <p className="peer-cert">Legacy signing on</p>}
       </div>
       <div className="peer-actions">
         <Button
