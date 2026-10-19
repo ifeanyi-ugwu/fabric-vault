@@ -5,6 +5,7 @@ import { Button } from "~/components/ui/button"
 import { Card } from "~/components/ui/card"
 import { DropZone } from "~/components/ui/drop-zone"
 import { usePeer } from "~/contexts/peer"
+import { isSecureGatewayUrl } from "~lib/gateway-url"
 
 export function AddPeer() {
   const navigate = useNavigate()
@@ -41,6 +42,10 @@ export function AddPeer() {
       return
     }
 
+    if (!isSecureGatewayUrl(rpcUrl.trim())) {
+      setError("RPC URL must use wss://. ws:// is accepted only for localhost.")
+      return
+    }
     addPeer({ name: peerName, endpoint: peerEndpoint, rpcUrl, tlsRootCert })
     window.history.length > 1 ? navigate({ to: "/dashboard" }) : window.close()
   }
