@@ -1,3 +1,7 @@
+import type {
+  FabricAnnounceProviderDetail,
+  FabricProviderInfo
+} from "@fabric-vault/types"
 import fabricVaultIconUrl from "data-base64:assets/icon.png"
 
 window.fabric = {

@@ -32,14 +32,16 @@ export function RequestProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    sessionStore.get(`pendingRequest_${id}`).then((storedRequest) => {
-      if (storedRequest) {
-        setRequest(storedRequest)
-      } else {
-        setError("Request not found.")
-      }
-      setLoading(false)
-    })
+    sessionStore
+      .get<RequestData>(`pendingRequest_${id}`)
+      .then((storedRequest) => {
+        if (storedRequest) {
+          setRequest(storedRequest)
+        } else {
+          setError("Request not found.")
+        }
+        setLoading(false)
+      })
   }, [])
 
   return (

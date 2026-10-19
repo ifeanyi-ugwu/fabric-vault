@@ -233,19 +233,22 @@ async function handleSubscriptionRequest(
   }
 
   // Get or create WebSocket connection for this peer
-  let ws = activeSubscriptionWebSockets.get(selectedPeer.rpcUrl)
-  if (!ws || ws.readyState !== WebSocket.OPEN) {
-    ws = await createWebSocketConnection(selectedPeer.rpcUrl, origin)
+  let socket = activeSubscriptionWebSockets.get(selectedPeer.rpcUrl)
+  if (!socket || socket.readyState !== WebSocket.OPEN) {
+    socket = await createWebSocketConnection(selectedPeer.rpcUrl, origin)
   }
 
   // Wait for the WebSocket to open if it's not already
-  if (ws.readyState === WebSocket.CONNECTING) {
-    await waitForWebSocketOpen(ws)
+  if (socket.readyState === WebSocket.CONNECTING) {
+    await waitForWebSocketOpen(socket)
   }
 
-  if (ws.readyState !== WebSocket.OPEN) {
+  if (socket.readyState !== WebSocket.OPEN) {
     throw new Error("WebSocket is not open for subscription.")
   }
+
+  // Narrowing on `socket` does not carry into the promise callback below.
+  const ws = socket
 
   const requestId = Math.random().toString(36).substring(2)
 
