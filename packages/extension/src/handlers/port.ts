@@ -14,6 +14,18 @@ import { sessionStore } from "~lib/storage"
 import { getStoredConnections } from "~services/connection"
 import { handleSignRequest } from "~services/wallet"
 
+// MessageSender.origin is absent from webextension-polyfill's types, and a
+// content-script port always carries the page URL, so derive it from there.
+function getPortOrigin(port: Browser.Runtime.Port): string | undefined {
+  const url = port.sender?.url
+  if (!url) return undefined
+  try {
+    return new URL(url).origin
+  } catch {
+    return undefined
+  }
+}
+
 async function isConnectedToIdentity(
   origin: string | undefined,
   identityLabel: string | undefined
@@ -111,7 +123,7 @@ async function openAuthorizationPopup(
   type: string
 ): Promise<any> {
   const { id } = message
-  const origin = port.sender?.origin
+  const origin = getPortOrigin(port)
   if (!origin) {
     throw new Error("Could not determine the origin of the request.")
   }
@@ -137,7 +149,7 @@ async function openAuthorizationPopup(
 }
 
 async function handleIdentitiesRequest(port: Browser.Runtime.Port) {
-  const origin = port.sender?.origin
+  const origin = getPortOrigin(port)
   if (!origin) {
     throw new Error("Could not determine the origin of the request.")
   }
@@ -174,7 +186,7 @@ async function handleIdentitiesRequest(port: Browser.Runtime.Port) {
 // Main request handler for port messages
 async function handlePortRequest(message: any, port: Browser.Runtime.Port) {
   const { method } = message
-  const origin = port.sender?.origin
+  const origin = getPortOrigin(port)
 
   switch (method) {
     case "fabric_requestIdentities":
@@ -486,7 +498,7 @@ export const handlePortConnection = (port: Browser.Runtime.Port) => {
     portRequestIds.clear()
 
     // Clean up subscriptions for this disconnected port
-    const disconnectedOrigin = port.sender?.origin
+    const disconnectedOrigin = getPortOrigin(port)
     console.log(
       `Port disconnected for origin: ${disconnectedOrigin}. Port name: ${port.name}.`
     )
