@@ -454,3 +454,147 @@ describe("approvedSubscription", () => {
     )
   })
 })
+
+describe("answerSigningRequest with several grants for one certificate", () => {
+  const subscription = (
+    grants: SigningGrants<SigningContext>,
+    approved: ConstructorParameters<typeof SigningSession>[0],
+    options: { count?: number; allowLegacyDigest?: boolean } = {}
+  ) =>
+    grants.grant({
+      certificate: CERT,
+      origin: "https://dapp.example",
+      count: options.count ?? 2,
+      ttlMs: 60_000,
+      context: {
+        session: new SigningSession(approved),
+        allowLegacyDigest: options.allowLegacyDigest ?? false
+      }
+    })
+  const sign: Sign = async () => ({ success: true, signature: "S" })
+  const block = { method: "blockEvents", channel: CHANNEL, identity } as const
+  const chaincode = (name: string) =>
+    ({
+      method: "chaincodeEvents",
+      channel: CHANNEL,
+      chaincode: name,
+      identity
+    }) as const
+  const blockBytes = () =>
+    network({}, (n) => n.newBlockEventsRequest().getBytes())
+  const chaincodeBytes = (name: string) =>
+    network({}, (n) => n.newChaincodeEventsRequest(name).getBytes())
+
+  it("signs a chaincode subscription while a block subscription's grant is still live", async () => {
+    // Each subscription's grant keeps one signature of margin, so the first
+    // grant is still live, and expires first, when the second request arrives.
+    const grants = new SigningGrants<SigningContext>()
+    subscription(grants, block)
+    assert.deepEqual(
+      await answerSigningRequest(
+        signRequest("blockEvents", blockBytes()),
+        grants,
+        sign
+      ),
+      { result: { signature: "S" } }
+    )
+    subscription(grants, chaincode("basic"))
+    assert.deepEqual(
+      await answerSigningRequest(
+        signRequest("chaincodeEvents", chaincodeBytes("basic")),
+        grants,
+        sign
+      ),
+      { result: { signature: "S" } }
+    )
+  })
+
+  it("checks a request against the grant of the chaincode it names", async () => {
+    const grants = new SigningGrants<SigningContext>()
+    subscription(grants, chaincode("first"))
+    subscription(grants, chaincode("second"))
+    assert.deepEqual(
+      await answerSigningRequest(
+        signRequest("chaincodeEvents", chaincodeBytes("second")),
+        grants,
+        sign
+      ),
+      { result: { signature: "S" } }
+    )
+  })
+
+  it("spends only the grant that accepted the request", async () => {
+    const grants = new SigningGrants<SigningContext>()
+    subscription(grants, chaincode("first"), { count: 1 })
+    subscription(grants, chaincode("second"), { count: 1 })
+    await answerSigningRequest(
+      signRequest("chaincodeEvents", chaincodeBytes("second")),
+      grants,
+      sign
+    )
+    // The first grant still has its signature.
+    assert.deepEqual(
+      await answerSigningRequest(
+        signRequest("chaincodeEvents", chaincodeBytes("first")),
+        grants,
+        sign
+      ),
+      { result: { signature: "S" } }
+    )
+    refusal(
+      await answerSigningRequest(
+        signRequest("chaincodeEvents", chaincodeBytes("first")),
+        grants,
+        sign
+      ),
+      /No approved request/
+    )
+  })
+
+  it("refuses a request no grant accepts, with the earliest grant's reason", async () => {
+    const grants = new SigningGrants<SigningContext>()
+    subscription(grants, chaincode("first"))
+    subscription(grants, chaincode("second"))
+    refusal(
+      await answerSigningRequest(
+        signRequest("chaincodeEvents", chaincodeBytes("third")),
+        grants,
+        sign
+      ),
+      /not the one subscribed to/
+    )
+  })
+
+  it("spends nothing when a request is refused", async () => {
+    const grants = new SigningGrants<SigningContext>()
+    subscription(grants, chaincode("basic"), { count: 1 })
+    refusal(
+      await answerSigningRequest(
+        signRequest("chaincodeEvents", chaincodeBytes("other")),
+        grants,
+        sign
+      ),
+      /not the one subscribed to/
+    )
+    assert.deepEqual(
+      await answerSigningRequest(
+        signRequest("chaincodeEvents", chaincodeBytes("basic")),
+        grants,
+        sign
+      ),
+      { result: { signature: "S" } }
+    )
+  })
+
+  it("signs a digest under the grant that allows legacy signing", async () => {
+    const grants = new SigningGrants<SigningContext>()
+    subscription(grants, block)
+    subscription(grants, chaincode("basic"), { allowLegacyDigest: true })
+    const reply = await answerSigningRequest(
+      { method: "signDigest", params: { digest: "QUJD", certificate: CERT } },
+      grants,
+      sign
+    )
+    assert.deepEqual(reply, { result: { signature: "S" } })
+  })
+})

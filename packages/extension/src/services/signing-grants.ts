@@ -42,21 +42,36 @@ export class SigningGrants<Context = undefined> {
     })
   }
 
-  /** Uses one signature from the earliest-expiring live grant for the certificate. */
-  consume(certificate: string): SigningGrant<Context> | null {
+  /**
+   * The live grants for a certificate, earliest-expiring first. A certificate
+   * can hold several at once, so a caller that can tell which one a request
+   * belongs to tries each and then `use`s the one that fits.
+   */
+  live(certificate: string): SigningGrant<Context>[] {
     const now = this.now()
     this.entries = this.entries.filter(
       (entry) => entry.remaining > 0 && entry.expiresAt > now
     )
-    const live = this.entries
+    return this.entries
       .filter((entry) => entry.certificate === certificate)
-      .sort((a, b) => a.expiresAt - b.expiresAt)[0]
-    if (!live) return null
-    live.remaining -= 1
+      .sort((a, b) => a.expiresAt - b.expiresAt)
+  }
+
+  /** Spends one signature of a grant that `live` returned. */
+  use(grant: SigningGrant<Context>): void {
+    const entry = this.entries.find((candidate) => candidate === grant)
+    if (entry) entry.remaining -= 1
+  }
+
+  /** Uses one signature from the earliest-expiring live grant for the certificate. */
+  consume(certificate: string): SigningGrant<Context> | null {
+    const [earliest] = this.live(certificate)
+    if (!earliest) return null
+    this.use(earliest)
     return {
-      certificate: live.certificate,
-      origin: live.origin,
-      context: live.context
+      certificate: earliest.certificate,
+      origin: earliest.origin,
+      context: earliest.context
     }
   }
 }

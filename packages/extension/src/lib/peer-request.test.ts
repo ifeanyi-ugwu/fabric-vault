@@ -162,6 +162,36 @@ describe("samePeer", () => {
   it("matches the same node through the same gateway", () => {
     assert.equal(samePeer(base, { ...base, name: "renamed" }), true)
   })
+  it("ignores trailing newlines and line endings in the certificate", () => {
+    const pem =
+      "-----BEGIN CERTIFICATE-----\nAAAA\nBBBB\n-----END CERTIFICATE-----"
+    assert.equal(
+      samePeer(
+        { ...base, tlsRootCert: `${pem}\n` },
+        { ...base, tlsRootCert: pem }
+      ),
+      true
+    )
+    assert.equal(
+      samePeer(
+        { ...base, tlsRootCert: pem },
+        { ...base, tlsRootCert: pem.replace(/\n/g, "\r\n") }
+      ),
+      true
+    )
+  })
+
+  it("tells a certificate from none, and one certificate from another", () => {
+    assert.equal(samePeer({ ...base, tlsRootCert: CERT }, base), false)
+    assert.equal(
+      samePeer(
+        { ...base, tlsRootCert: CERT },
+        { ...base, tlsRootCert: CERT.replace("MIIB", "MIIC") }
+      ),
+      false
+    )
+  })
+
   it("tells apart another endpoint, gateway or certificate", () => {
     assert.equal(samePeer(base, { ...base, endpoint: "other:7051" }), false)
     assert.equal(

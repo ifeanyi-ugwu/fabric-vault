@@ -466,9 +466,10 @@ async function createWebSocketConnection(
       const target = subscriptionToPortMap.get(subscriptionId)
 
       if (target) {
-        // Emit the event to the specific dApp that subscribed
+        // Emit the event to the specific dApp that subscribed. The content
+        // script listens on the port, not for runtime messages to its tab.
         try {
-          await browser.tabs.sendMessage(target.port.sender?.tab?.id!, {
+          target.port.postMessage({
             type: "fabric_subscription",
             result: notification.params,
             kind: "event",
@@ -476,7 +477,7 @@ async function createWebSocketConnection(
           })
         } catch (err) {
           console.warn(
-            `Could not send subscription event to tab ${target.port.sender?.tab?.id}:`,
+            `Could not send subscription event to ${target.origin}:`,
             err instanceof Error ? err.message : String(err)
           )
         }

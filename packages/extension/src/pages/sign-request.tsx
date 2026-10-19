@@ -104,9 +104,14 @@ export function SignRequest() {
   const canApprove = !!selectedIdentity && !!selectedPeer && !!described.call
   // The extension sends its own identity and peer, so the dApp's are not shown.
   const {
+    // Shown above, or replaced by the extension's own, so not repeated here.
     peer: _peer,
     identity: _identity,
     capabilities: _capabilities,
+    channel: _channel,
+    chaincode: _chaincode,
+    fn: _fn,
+    args: _args,
     ...otherParams
   } = request.payload?.params ?? {}
 

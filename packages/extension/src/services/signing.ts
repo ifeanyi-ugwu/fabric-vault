@@ -63,28 +63,47 @@ export async function answerSigningRequest(
   if (typeof certificate !== "string" || certificate === "") {
     return refuse("Certificate not provided for signing.")
   }
-  const grant = grants.consume(certificate)
-  if (!grant) return refuse("No approved request covers this signature.")
+  // A certificate can hold several grants at once, for example two
+  // subscriptions on one socket, and the request carries nothing that says
+  // which it belongs to. Each is tried, earliest first, and the first whose
+  // session accepts the request is the one that pays for the signature.
+  const candidates = grants.live(certificate)
+  if (candidates.length === 0) {
+    return refuse("No approved request covers this signature.")
+  }
 
+  let grant: (typeof candidates)[number] | undefined
   let digest: string
   if (method === "signRequest") {
     const { kind, bytes } = message.params
     if (!SIGN_KINDS.has(kind) || typeof bytes !== "string") {
       return refuse("Malformed signature request.")
     }
+    let decoded: Uint8Array
     try {
-      digest = toBase64(
-        await grant.context.session.verify(kind, fromBase64(bytes))
-      )
+      decoded = fromBase64(bytes)
     } catch (error) {
-      if (error instanceof VerificationError) return refuse(error.message)
       if (error instanceof DOMException) {
         return refuse("Malformed signature request.")
       }
       throw error
     }
+    let firstRefusal: string | undefined
+    digest = ""
+    for (const candidate of candidates) {
+      try {
+        digest = toBase64(await candidate.context.session.verify(kind, decoded))
+        grant = candidate
+        break
+      } catch (error) {
+        if (!(error instanceof VerificationError)) throw error
+        firstRefusal ??= error.message
+      }
+    }
+    if (!grant) return refuse(firstRefusal ?? "Signing refused.")
   } else {
-    if (!grant.context.allowLegacyDigest) {
+    grant = candidates.find((candidate) => candidate.context.allowLegacyDigest)
+    if (!grant) {
       return refuse(
         "This gateway asks for a digest, which the extension cannot check. Turn on legacy signing for the peer to allow it."
       )
@@ -94,6 +113,7 @@ export async function answerSigningRequest(
     }
     digest = message.params.digest
   }
+  grants.use(grant)
 
   const signed = await sign(digest, certificate, grant.origin)
   return signed.success && signed.signature !== undefined

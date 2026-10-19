@@ -97,6 +97,13 @@ export async function handleSendRequest(
       )
       if (reply) {
         ws.send(JSON.stringify({ jsonrpc: "2.0", id: message.id, ...reply }))
+        // A refused signature ends the request. A gateway that predates
+        // signRequest never reports it, so the call would hang without the
+        // reason being shown.
+        if ("error" in reply) {
+          reject(new Error(reply.error.message))
+          ws.close()
+        }
       } else if (message.result) {
         resolve(message.result)
         ws.close()
