@@ -21,7 +21,8 @@ describe("SigningGrants", () => {
     grants.grant({ ...base, count: 1 })
     assert.deepEqual(grants.consume("CERT"), {
       certificate: "CERT",
-      origin: "https://a.example"
+      origin: "https://a.example",
+      context: undefined
     })
   })
 
@@ -82,5 +83,19 @@ describe("SigningGrants", () => {
     const { grants } = setup()
     grants.grant({ ...base, count: 0 })
     assert.equal(grants.consume("CERT"), null)
+  })
+
+  it("hands back the context the grant was issued with", () => {
+    let now = 0
+    const grants = new SigningGrants<{ call: string }>(() => now)
+    grants.grant({ ...base, count: 1, context: { call: "transfer" } })
+    grants.grant({
+      ...base,
+      certificate: "OTHER",
+      count: 1,
+      context: { call: "read" }
+    })
+    assert.deepEqual(grants.consume("OTHER")?.context, { call: "read" })
+    assert.deepEqual(grants.consume("CERT")?.context, { call: "transfer" })
   })
 })
