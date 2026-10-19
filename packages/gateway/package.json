@@ -23,7 +23,8 @@
   "scripts": {
     "start": "node dist/main.js",
     "dev": "tsx watch src/main.ts",
-    "build": "tsup"
+    "build": "tsup",
+    "test": "tsx --test src/**/*.test.ts"
   },
   "keywords": [],
   "author": "",
