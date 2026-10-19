@@ -15,11 +15,11 @@
   "dependencies": {
     "@fabric-vault/types": "workspace:*",
     "@noble/curves": "^1.9.0",
-    "@plasmohq/messaging": "https://github.com/ifeanyi-ugwu/plasmo/releases/download/typed-messaging-pr1348/plasmohq-messaging-0.7.2.tgz",
+    "@plasmohq/messaging": "file:../../vendor/plasmohq-messaging-0.7.2.tgz",
     "@plasmohq/storage": "^1.13.0",
     "@tanstack/react-router": "^1.117.1",
     "@tanstack/router": "0.0.1-beta.53",
-    "plasmo": "https://github.com/ifeanyi-ugwu/plasmo/releases/download/typed-messaging-pr1348/plasmo-0.90.5.tgz",
+    "plasmo": "file:../../vendor/plasmo-0.90.5.tgz",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "webextension-polyfill": "^0.12.0"
