@@ -4,7 +4,7 @@ import browser from "webextension-polyfill"
 import {
   activeSubscriptionWebSockets,
   connections,
-  pendingRequestResolvers,
+  pendingRequests,
   subscriptionToPortMap,
   wallet
 } from "~background/state"
@@ -127,17 +127,33 @@ async function openAuthorizationPopup(
     origin
   })
 
-  browser.windows.create({
-    url: browser.runtime.getURL(`popup.html?requestId=${id}`),
-    type: "popup",
-    width: 360,
-    height: 600
-  })
-
-  return new Promise((resolve, reject) => {
-    pendingRequestResolvers.set(id, { resolve, reject })
-  })
+  const answer = pendingRequests.open(id)
+  try {
+    const popup = await browser.windows.create({
+      url: browser.runtime.getURL(`popup.html?requestId=${id}`),
+      type: "popup",
+      width: 360,
+      height: 600
+    })
+    if (popup.id !== undefined) requestOfPopup.set(popup.id, id)
+  } catch (error) {
+    pendingRequests.reject(
+      id,
+      error instanceof Error ? error : new Error(String(error))
+    )
+  }
+  return answer
 }
+
+// A popup closed without an answer cancels its request. The popup also closes
+// after the user approves, which pendingRequests tells apart.
+const requestOfPopup = new Map<number, string>()
+browser.windows.onRemoved.addListener((windowId) => {
+  const id = requestOfPopup.get(windowId)
+  if (id === undefined) return
+  requestOfPopup.delete(windowId)
+  pendingRequests.popupClosed(id)
+})
 
 async function handleIdentitiesRequest(port: Browser.Runtime.Port) {
   const origin = getPortOrigin(port)
@@ -540,16 +556,9 @@ export const handlePortConnection = (port: Browser.Runtime.Port) => {
     //this check for name is because of plasmo's port that's almost frequently connecting and disconnecting during development
     if (port.name !== "fabric") return
 
-    // Cleanup pending requests associated with this port
-    portRequestIds.forEach((requestId) => {
-      if (pendingRequestResolvers.has(requestId)) {
-        // the port is disconnected anyway, it wont be receiving the rejection and there would be no pending promises since the listener goes with the port
-        //const { reject } = pendingRequestResolvers.get(requestId)!
-        //reject(new Error("Request cancelled: DApp port disconnected."))
-        pendingRequestResolvers.delete(requestId)
-        browser.storage.local.remove(`pendingRequest_${requestId}`)
-      }
-    })
+    // Cleanup pending requests associated with this port. The dApp's listener
+    // goes with the port, so nothing is left to receive a rejection.
+    portRequestIds.forEach((requestId) => pendingRequests.forget(requestId))
     portRequestIds.clear()
 
     // Clean up subscriptions for this disconnected port

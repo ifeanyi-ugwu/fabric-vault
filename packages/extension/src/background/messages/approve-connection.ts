@@ -2,7 +2,7 @@ import browser from "webextension-polyfill"
 
 import type { PlasmoMessaging } from "@plasmohq/messaging"
 
-import { pendingRequestResolvers } from "~background/state"
+import { pendingRequests } from "~background/state"
 import type { Identity } from "~contexts/identity"
 import type { Peer } from "~contexts/peer"
 import type { SiteIdentityConnection } from "~hooks/use-identity-to-site-connection"
@@ -43,19 +43,16 @@ const handler: PlasmoMessaging.MessageHandler<
   ResponseBody
 > = async (req, res) => {
   const { requestId, origin, identities } = req.body!
-  const resolver = pendingRequestResolvers.get(requestId)
+  const resolved = pendingRequests.resolve(
+    requestId,
+    identities.map((id) => ({
+      label: id.label,
+      mspId: id.mspId,
+      certificate: id.certificate
+    }))
+  )
 
-  if (resolver) {
-    resolver.resolve(
-      identities.map((id) => ({
-        label: id.label,
-        mspId: id.mspId,
-        certificate: id.certificate
-      }))
-    )
-    pendingRequestResolvers.delete(requestId)
-    browser.storage.local.remove(`pendingRequest_${requestId}`)
-
+  if (resolved) {
     if (origin && Array.isArray(identities)) {
       await storeConnection(
         origin,

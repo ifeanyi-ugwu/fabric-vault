@@ -1,8 +1,6 @@
-import browser from "webextension-polyfill"
-
 import type { PlasmoMessaging } from "@plasmohq/messaging"
 
-import { pendingRequestResolvers } from "~background/state"
+import { pendingRequests } from "~background/state"
 import type { Identity } from "~contexts/identity"
 import type { Peer } from "~contexts/peer"
 import type { RequestData } from "~contexts/request"
@@ -30,25 +28,24 @@ const handler: PlasmoMessaging.MessageHandler<
   }
 
   const { peer, identity, request } = req.body!
-  const resolver = pendingRequestResolvers.get(request.id)
-  if (!resolver) {
-    console.error(`No resolver found for pending request ID: ${request.id}`)
+  if (!pendingRequests.has(request.id)) {
+    console.error(`No pending request found for ID: ${request.id}`)
   }
+  // The user has answered. The transaction can outlast the popup, which closes
+  // right after this, so closing it must not cancel the request.
+  pendingRequests.answered(request.id)
 
   handleSendRequest(peer, identity, request)
     .then((result) => {
       console.log("Transaction completed successfully in background:", result)
-      resolver?.resolve(result)
+      pendingRequests.resolve(request.id, result)
     })
     .catch((error) => {
       console.error("Transaction failed in background:", error)
-      resolver?.reject(error)
-    })
-    .finally(() => {
-      if (pendingRequestResolvers.has(request.id)) {
-        pendingRequestResolvers.delete(request.id)
-        browser.storage.local.remove(`pendingRequest_${request.id}`)
-      }
+      pendingRequests.reject(
+        request.id,
+        error instanceof Error ? error : new Error(String(error))
+      )
     })
 
   res.send({ success: true, message: "Transaction initiation requested." })
