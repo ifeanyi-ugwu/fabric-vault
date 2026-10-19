@@ -220,7 +220,13 @@ export class JsonRpcHandler {
       }
 
       // Dispatch to specific handler
-      return await this.dispatchHandler(method, params, id);
+      const result = await this.dispatchHandler(method, params, id);
+      // A handler returns a bare result, or a ready-made error envelope.
+      if (result && typeof result === "object" && "jsonrpc" in result) {
+        return result;
+      }
+      // A request without an id is a notification and gets no reply.
+      return id === undefined ? null : this.buildResponse(id, result);
     } catch (err: any) {
       // If error is already a JSON-RPC error format, just return it
       if (err && typeof err === "object" && "jsonrpc" in err) {
