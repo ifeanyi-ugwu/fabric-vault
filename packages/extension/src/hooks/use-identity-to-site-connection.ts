@@ -4,7 +4,6 @@ import browser from "webextension-polyfill"
 import { sendToBackground } from "@plasmohq/messaging"
 
 import type { Identity } from "~/contexts/identity"
-import type { RequestBody as EmitEventBody } from "~background/messages/emit-event"
 
 export interface SiteIdentityConnection {
   identityLabel: string
@@ -120,7 +119,7 @@ export function useIdentityToSiteConnection() {
         fabricVaultConnections: JSON.stringify(connectionsObject)
       })
 
-      sendToBackground<EmitEventBody>({
+      sendToBackground({
         name: "emit-event",
         body: { event: "identitiesChanged", data: eventData }
       })

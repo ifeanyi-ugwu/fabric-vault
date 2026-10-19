@@ -9,22 +9,6 @@ import browser from "webextension-polyfill"
 
 import { sendToBackground } from "@plasmohq/messaging"
 
-import type {
-  RequestBody as ChangePasswordBody,
-  ResponseBody as ChangePasswordResponse
-} from "~background/messages/change-password"
-import type {
-  RequestBody as CreateVaultBody,
-  ResponseBody as CreateVaultResponse
-} from "~background/messages/create-vault"
-import type { ResponseBody as GetUnlockedStatusResponse } from "~background/messages/get-unlocked-status"
-import type { ResponseBody as HasVaultResponse } from "~background/messages/has-vault"
-import type { ResponseBody as LockResponse } from "~background/messages/lock"
-import type {
-  RequestBody as UnlockBody,
-  ResponseBody as UnlockResponse
-} from "~background/messages/unlock"
-
 export interface VaultContextType {
   isUnlocked: boolean
   unlock: (password: string) => Promise<void>
@@ -45,11 +29,9 @@ export const VaultProvider = ({ children }) => {
 
   const checkUnlockedStatus = useCallback(async () => {
     try {
-      const response = await sendToBackground<never, GetUnlockedStatusResponse>(
-        {
-          name: "get-unlocked-status"
-        }
-      )
+      const response = await sendToBackground({
+        name: "get-unlocked-status"
+      })
       setIsUnlocked(response?.isUnlocked || false)
       setIsInitialized(true)
     } catch (error) {
@@ -63,7 +45,7 @@ export const VaultProvider = ({ children }) => {
   }, [checkUnlockedStatus])
 
   const unlock = useCallback(async (password: string) => {
-    const response = await sendToBackground<UnlockBody, UnlockResponse>({
+    const response = await sendToBackground({
       name: "unlock",
       body: { password }
     })
@@ -75,16 +57,13 @@ export const VaultProvider = ({ children }) => {
   }, [])
 
   const lock = useCallback(async () => {
-    await sendToBackground<never, LockResponse>({ name: "lock" })
+    await sendToBackground({ name: "lock" })
     setIsUnlocked(false)
   }, [])
 
   const createVault = useCallback(
     async (password: string) => {
-      const response = await sendToBackground<
-        CreateVaultBody,
-        CreateVaultResponse
-      >({
+      const response = await sendToBackground({
         name: "create-vault",
         body: { password }
       })
@@ -99,10 +78,7 @@ export const VaultProvider = ({ children }) => {
 
   const changePassword = useCallback(
     async (newPassword: string) => {
-      const response = await sendToBackground<
-        ChangePasswordBody,
-        ChangePasswordResponse
-      >({
+      const response = await sendToBackground({
         name: "change-password",
         body: { newPassword }
       })
@@ -116,7 +92,7 @@ export const VaultProvider = ({ children }) => {
   )
 
   const hasVault = useCallback(async () => {
-    const response = await sendToBackground<never, HasVaultResponse>({
+    const response = await sendToBackground({
       name: "has-vault"
     })
     return response.hasVault

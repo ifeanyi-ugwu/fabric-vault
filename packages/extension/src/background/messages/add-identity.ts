@@ -1,15 +1,11 @@
 import type { PlasmoMessaging } from "@plasmohq/messaging"
 
+import type { PrivateIdentity } from "~lib/wallet"
 import { ensureWalletReady } from "~services/session"
 import { addIdentity } from "~services/wallet"
 
 export type RequestBody = {
-  identity: {
-    label: string
-    mspId: string
-    certificate: string
-    privateKey: string
-  }
+  identity: PrivateIdentity
 }
 export type ResponseBody = { success: boolean; error?: string }
 

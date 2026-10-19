@@ -3,8 +3,6 @@ import { useState } from "react"
 import { sendToBackground } from "@plasmohq/messaging"
 
 import { Button } from "~/components/ui/button"
-import type { RequestBody as ApproveConnectionBody } from "~background/messages/approve-connection"
-import type { RequestBody as RejectConnectionBody } from "~background/messages/reject-connection"
 import { useIdentity } from "~contexts/identity"
 import { usePeer } from "~contexts/peer"
 import { useRequest } from "~contexts/request"
@@ -44,7 +42,7 @@ export function ConnectRequest() {
     if (!selectedIdentity) return
     try {
       setIsSubmitting(true)
-      await sendToBackground<ApproveConnectionBody>({
+      await sendToBackground({
         name: "approve-connection",
         body: {
           requestId: request.id,
@@ -62,7 +60,7 @@ export function ConnectRequest() {
   const handleReject = async () => {
     try {
       setIsSubmitting(true)
-      await sendToBackground<RejectConnectionBody>({
+      await sendToBackground({
         name: "reject-connection",
         body: { requestId: request.id }
       })

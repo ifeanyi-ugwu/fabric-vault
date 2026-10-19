@@ -2,11 +2,6 @@ import { useState } from "react"
 
 import { sendToBackground } from "@plasmohq/messaging"
 
-import type { RequestBody as RejectSignBody } from "~background/messages/reject-sign"
-import type {
-  RequestBody as SendTransactionBody,
-  ResponseBody as SendTransactionResponse
-} from "~background/messages/send-transaction"
 import { Button } from "~components/ui/button"
 import { useIdentity } from "~contexts/identity"
 import { usePeer } from "~contexts/peer"
@@ -53,10 +48,7 @@ export function SignRequest() {
         setSending(false)
         return
       }
-      const response = await sendToBackground<
-        SendTransactionBody,
-        SendTransactionResponse
-      >({
+      const response = await sendToBackground({
         name: "send-transaction",
         body: { peer: selectedPeer, identity: selectedIdentity, request }
       })
@@ -72,7 +64,7 @@ export function SignRequest() {
 
   const handleReject = async () => {
     try {
-      await sendToBackground<RejectSignBody>({
+      await sendToBackground({
         name: "reject-sign",
         body: { requestId: request.id }
       })
