@@ -2,10 +2,17 @@ import { Client, credentials } from "@grpc/grpc-js";
 import { LRUCache } from "lru-cache";
 import { resolvePeerEndpoint } from "./peer-endpoint";
 
+// An evicted client may still carry calls for another connection, so closing
+// waits for them to finish. Eviction pressure comes from clients naming new
+// peers, so closing at once would let one connection cancel another's calls.
+const EVICTED_CLIENT_GRACE_MS = 60 * 1000;
+
 const grpcClientCache = new LRUCache<string, Client>({
-  max: 10,
+  max: 100,
   ttl: 30 * 60 * 1000, //  30 minutes,
-  dispose: (client) => client.close(),
+  dispose: (client) => {
+    setTimeout(() => client.close(), EVICTED_CLIENT_GRACE_MS).unref();
+  },
 });
 
 /**
