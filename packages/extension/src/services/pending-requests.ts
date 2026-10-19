@@ -33,7 +33,14 @@ export class PendingRequests {
   ) {}
 
   private get timers(): Timers {
-    return this.options.timers ?? { set: setTimeout, clear: clearTimeout }
+    // Wrapped, not the globals themselves: a browser throws "Illegal
+    // invocation" when setTimeout is called as a method of another object.
+    return (
+      this.options.timers ?? {
+        set: (callback, ms) => setTimeout(callback, ms),
+        clear: (timer) => clearTimeout(timer)
+      }
+    )
   }
 
   /** Registers a request and returns the promise its settling resolves or rejects. */

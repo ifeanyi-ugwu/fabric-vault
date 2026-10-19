@@ -168,4 +168,33 @@ describe("PendingRequests", () => {
       assert.equal(done, false)
     })
   })
+
+  describe("with the real timers", () => {
+    it("works where setTimeout must be called as a plain function", async () => {
+      // A browser throws "Illegal invocation" for setTimeout called as a
+      // method of another object. This makes Node do the same.
+      const original = globalThis.setTimeout
+      const strict = function (
+        this: unknown,
+        ...args: Parameters<typeof setTimeout>
+      ) {
+        if (this !== undefined && this !== globalThis) {
+          throw new TypeError("Illegal invocation")
+        }
+        return original(...args)
+      } as typeof setTimeout
+      globalThis.setTimeout = strict
+      try {
+        const requests = new PendingRequests({
+          timeoutMs: 1000,
+          onSettled: () => {}
+        })
+        const promise = requests.open("a")
+        requests.resolve("a", "ok")
+        assert.deepEqual(await outcome(promise), { value: "ok" })
+      } finally {
+        globalThis.setTimeout = original
+      }
+    })
+  })
 })
