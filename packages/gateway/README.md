@@ -179,11 +179,42 @@ Unsubscribes from an active event stream.
 
 - `boolean` `true` if the subscription was successfully canceled, `false` otherwise.
 
-### Signature Request (`signDigest` request)
+### Signature requests
 
-When submitting transactions, the gateway will send a `signDigest` request to the client. The client is expected to sign the digest and send back a JSON-RPC response with the signature.
+The gateway holds no keys. Each call that signs asks the client for signatures over a WebSocket, and the client answers with a JSON-RPC response.
 
-**Notification:**
+A client chooses the protocol with the first request of a connection: `capabilities` in the `params` of that request, listing `"signRequest"`, selects `signRequest`. Any other value, or none, selects `signDigest`. The choice holds for the life of the connection.
+
+An `evaluate` is signed once, a `fabric_submitTransaction` three times (proposal, endorsed transaction, commit status request), a `fabric_submitAsync` twice, and a `fabric_subscribe` once.
+
+#### `signRequest`
+
+The gateway sends the serialized request, so the client can read what it is signing and sign the SHA-256 hash of the bytes the Fabric Gateway client library hashes.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "signRequest",
+  "params": {
+    "kind": "proposal",
+    "bytes": "base64EncodedSerializedRequest",
+    "certificate": "certificate string from identity.certificate"
+  },
+  "id": "requestId"
+}
+```
+
+| `kind` | `bytes` |
+| --- | --- |
+| `proposal` | `Proposal.getBytes()`: a `gateway.ProposedTransaction` |
+| `transaction` | `Transaction.getBytes()`: a `gateway.PreparedTransaction` |
+| `commit` | `Commit.getBytes()`: a `gateway.SignedCommitStatusRequest` |
+| `chaincodeEvents` | `ChaincodeEventsRequest.getBytes()`: a `gateway.SignedChaincodeEventsRequest` |
+| `blockEvents` | `BlockEventsRequest.getBytes()`: a `common.Envelope` |
+
+#### `signDigest`
+
+The gateway sends the hash only. The client cannot tell what the hash covers.
 
 ```json
 {
@@ -191,15 +222,15 @@ When submitting transactions, the gateway will send a `signDigest` request to th
   "method": "signDigest",
   "params": {
     "digest": "base64EncodedDigest",
-    "certificate": "base64EncodedPEMCertificate"
+    "certificate": "certificate string from identity.certificate"
   },
   "id": "requestId"
 }
 ```
 
-**Client Response:**
+#### Client response
 
-The client must respond with a JSON-RPC response containing the signature.
+For both protocols the client answers with the signature, or with an error to refuse.
 
 ```json
 {
@@ -210,6 +241,16 @@ The client must respond with a JSON-RPC response containing the signature.
   "id": "requestId"
 }
 ```
+
+```json
+{
+  "jsonrpc": "2.0",
+  "error": { "code": -32001, "message": "reason" },
+  "id": "requestId"
+}
+```
+
+A request that gets no reply fails after `GATEWAY_SIGNATURE_TIMEOUT_MS`.
 
 ---
 
