@@ -18,6 +18,7 @@ export default defineConfig({
           { text: "Provider Discovery", link: "/guide/discovery" },
           { text: "Transactions", link: "/guide/transactions" },
           { text: "Subscriptions", link: "/guide/subscriptions" },
+          { text: "Peers", link: "/guide/peers" },
           { text: "Examples", link: "/guide/examples" },
           { text: "Demo Setup", link: "/guide/demo-setup" },
         ],
