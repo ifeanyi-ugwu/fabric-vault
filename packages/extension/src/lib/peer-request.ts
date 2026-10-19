@@ -88,12 +88,16 @@ export function parsePeerRequest(params: unknown): PeerRequest {
   }
 }
 
+/** A PEM certificate as the same text whatever its line endings or trailing newline. */
+const certificateText = (cert: string | null | undefined) =>
+  (cert ?? "").replace(/\s+/g, "")
+
 /** Two peers are the same when they reach the same node through the same gateway. */
 export function samePeer(a: PeerRequest, b: PeerRequest): boolean {
   return (
     a.endpoint === b.endpoint &&
     a.rpcUrl === b.rpcUrl &&
-    (a.tlsRootCert ?? null) === (b.tlsRootCert ?? null)
+    certificateText(a.tlsRootCert) === certificateText(b.tlsRootCert)
   )
 }
 
