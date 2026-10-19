@@ -164,7 +164,7 @@ export class JsonRpcHandler {
         }
         const fabricIdentity = {
           mspId: identity.mspId,
-          credentials: Buffer.from(identity.certificate),
+          credentials: new Uint8Array(Buffer.from(identity.certificate)),
         };
         const signer = this.createSigner(identity.certificate);
         this.fabricService = await FabricService.createForUser(
@@ -254,7 +254,7 @@ export class JsonRpcHandler {
 
     const fabricIdentity = {
       mspId: identity.mspId,
-      credentials: Buffer.from(identity.certificate),
+      credentials: new Uint8Array(Buffer.from(identity.certificate)),
     };
     const signer = this.createSigner(identity.certificate);
 
