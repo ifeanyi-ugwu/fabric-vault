@@ -45,6 +45,16 @@ describe("parseProposedTransaction", () => {
     assert.equal(parsed.hasTransientData, false)
   })
 
+  it("keeps the header bytes the transaction ID and the proposal hash are computed from", () => {
+    const built = proposal()
+    const parsed = parseProposedTransaction(built.bytes)
+    assert.equal(
+      sha256(Buffer.concat([parsed.nonce, parsed.creatorBytes])),
+      parsed.txId
+    )
+    assert.equal(parsed.txId, built.txId)
+  })
+
   it("reads the contract-qualified function name", () => {
     const parsed = parseProposedTransaction(
       proposal({ contract: "AssetContract" }).bytes
@@ -87,11 +97,12 @@ describe("parseProposedTransaction", () => {
 })
 
 describe("parsePreparedTransaction", () => {
-  const txId = proposal().txId
+  const built = proposal()
+  const txId = built.txId
 
   it("reads the header and each action", () => {
     const parsed = parsePreparedTransaction(
-      preparedTransaction({ txId, actions: 2 })
+      preparedTransaction({ proposalBytes: built.bytes, txId, actions: 2 })
     )
     assert.equal(parsed.type, ENDORSER_TRANSACTION)
     assert.equal(parsed.channelId, CHANNEL)
@@ -106,8 +117,28 @@ describe("parsePreparedTransaction", () => {
     ])
   })
 
+  it("reads the proposal hash and the payload it covers", () => {
+    const parsed = parsePreparedTransaction(
+      preparedTransaction({ proposalBytes: built.bytes, txId })
+    )
+    const [action] = parsed.actions
+    const proposal = parseProposedTransaction(built.bytes)
+    assert.equal(
+      sha256(
+        Buffer.concat([
+          proposal.channelHeader,
+          proposal.signatureHeader,
+          action.chaincodeProposalPayload
+        ])
+      ),
+      Buffer.from(action.proposalHash).toString("hex")
+    )
+  })
+
   it("covers the envelope payload", () => {
-    const parsed = parsePreparedTransaction(preparedTransaction({ txId }))
+    const parsed = parsePreparedTransaction(
+      preparedTransaction({ proposalBytes: built.bytes, txId })
+    )
     assert.ok(parsed.signedBytes.length > 0)
     assert.equal(
       common.Payload.deserializeBinary(parsed.signedBytes).hasHeader(),
@@ -117,8 +148,9 @@ describe("parsePreparedTransaction", () => {
 
   it("reads a transaction with no actions", () => {
     assert.equal(
-      parsePreparedTransaction(preparedTransaction({ txId, actions: 0 }))
-        .actions.length,
+      parsePreparedTransaction(
+        preparedTransaction({ proposalBytes: built.bytes, txId, actions: 0 })
+      ).actions.length,
       0
     )
   })

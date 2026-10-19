@@ -70,6 +70,19 @@ function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
   return a.length === b.length && a.every((byte, i) => byte === b[i])
 }
 
+function concat(...parts: Uint8Array[]): Uint8Array {
+  const out = new Uint8Array(parts.reduce((n, part) => n + part.length, 0))
+  let offset = 0
+  for (const part of parts) {
+    out.set(part, offset)
+    offset += part.length
+  }
+  return out
+}
+
+const hex = (bytes: Uint8Array) =>
+  Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")
+
 async function sha256(bytes: Uint8Array): Promise<Uint8Array> {
   return new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))
 }
@@ -80,7 +93,12 @@ async function sha256(bytes: Uint8Array): Promise<Uint8Array> {
  * approved call or subscription.
  */
 export class SigningSession {
-  private proposal?: { txId: string; channelId: string }
+  private proposal?: {
+    txId: string
+    channelId: string
+    channelHeader: Uint8Array
+    signatureHeader: Uint8Array
+  }
 
   constructor(private approved: Approved) {}
 
@@ -92,7 +110,7 @@ export class SigningSession {
       )
     }
     try {
-      return await sha256(this.signedBytes(kind, bytes))
+      return await sha256(await this.signedBytes(kind, bytes))
     } catch (error) {
       if (error instanceof DecodeError) {
         throw new VerificationError(`Malformed ${kind}: ${error.message}`)
@@ -101,7 +119,10 @@ export class SigningSession {
     }
   }
 
-  private signedBytes(kind: SignKind, bytes: Uint8Array): Uint8Array {
+  private async signedBytes(
+    kind: SignKind,
+    bytes: Uint8Array
+  ): Promise<Uint8Array> {
     switch (kind) {
       case "proposal":
         return this.proposalBytes(bytes)
@@ -120,7 +141,7 @@ export class SigningSession {
     return this.approved as ApprovedCall
   }
 
-  private proposalBytes(bytes: Uint8Array): Uint8Array {
+  private async proposalBytes(bytes: Uint8Array): Promise<Uint8Array> {
     const proposal = parseProposedTransaction(bytes)
     if (proposal.type !== ENDORSER_TRANSACTION) {
       throw new VerificationError(
@@ -136,16 +157,31 @@ export class SigningSession {
     if (!proposal.txId) {
       throw new VerificationError("The proposal has no transaction ID.")
     }
+    // The ID is derived from the nonce and creator, so it commits the
+    // proposal to the nonce that the endorsed transaction must also carry.
+    const derivedTxId = hex(
+      await sha256(concat(proposal.nonce, proposal.creatorBytes))
+    )
+    if (proposal.txId !== derivedTxId) {
+      throw new VerificationError(
+        "The transaction ID is not derived from the proposal's nonce and creator."
+      )
+    }
     if (this.proposal && this.proposal.txId !== proposal.txId) {
       throw new VerificationError(
         "The proposal is for a different transaction than the one already signed."
       )
     }
-    this.proposal = { txId: proposal.txId, channelId: proposal.channelId }
+    this.proposal = {
+      txId: proposal.txId,
+      channelId: proposal.channelId,
+      channelHeader: proposal.channelHeader,
+      signatureHeader: proposal.signatureHeader
+    }
     return proposal.signedBytes
   }
 
-  private transactionBytes(bytes: Uint8Array): Uint8Array {
+  private async transactionBytes(bytes: Uint8Array): Promise<Uint8Array> {
     const transaction = parsePreparedTransaction(bytes)
     if (transaction.type !== ENDORSER_TRANSACTION) {
       throw new VerificationError(
@@ -160,6 +196,18 @@ export class SigningSession {
     for (const action of transaction.actions) {
       this.checkCreator(action.creator)
       this.checkInvocation(action.invocation)
+      // The endorsers sign the hash of the proposal they saw. Recomputing it
+      // from the proposal signed here shows this transaction answers that
+      // proposal, nonce included.
+      const { channelHeader, signatureHeader } = this.proposal!
+      const expected = await sha256(
+        concat(channelHeader, signatureHeader, action.chaincodeProposalPayload)
+      )
+      if (!sameBytes(expected, action.proposalHash)) {
+        throw new VerificationError(
+          "The endorsed transaction is not for the proposal that was signed."
+        )
+      }
     }
     return transaction.signedBytes
   }

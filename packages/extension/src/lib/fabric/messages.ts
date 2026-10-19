@@ -29,6 +29,10 @@ interface Header {
   txId: string
   creator: SerializedIdentity
   nonce: Uint8Array
+  /** The serialized `ChannelHeader`, `SignatureHeader` and creator, as hashed. */
+  channelHeader: Uint8Array
+  signatureHeader: Uint8Array
+  creatorBytes: Uint8Array
 }
 
 export interface ProposalInfo extends Header {
@@ -44,6 +48,10 @@ export interface TransactionInfo extends Header {
   actions: Array<{
     creator: SerializedIdentity
     invocation: ChaincodeInvocation
+    /** The proposal payload the endorsers saw, without transient data. */
+    chaincodeProposalPayload: Uint8Array
+    /** `proposal_hash` of the endorsed `ProposalResponsePayload`. */
+    proposalHash: Uint8Array
   }>
 }
 
@@ -81,14 +89,20 @@ export function parseIdentity(bytes: Uint8Array): SerializedIdentity {
 
 /** `common.Header`: a channel header and a signature header, both as bytes. */
 function parseHeader(header: ReturnType<typeof decode>): Header {
-  const channel = messageField(header, 1)
-  const signature = messageField(header, 2)
+  const channelHeader = bytesField(header, 1)
+  const signatureHeader = bytesField(header, 2)
+  const channel = decode(channelHeader)
+  const signature = decode(signatureHeader)
+  const creatorBytes = bytesField(signature, 1)
   return {
     type: intField(channel, 1),
     channelId: textField(channel, 4),
     txId: textField(channel, 5),
-    creator: parseIdentity(bytesField(signature, 1)),
-    nonce: bytesField(signature, 2)
+    creator: parseIdentity(creatorBytes),
+    nonce: bytesField(signature, 2),
+    channelHeader,
+    signatureHeader,
+    creatorBytes
   }
 }
 
@@ -134,9 +148,13 @@ export function parsePreparedTransaction(bytes: Uint8Array): TransactionInfo {
   const actions = repeatedBytes(transaction, 1).map((encoded) => {
     const action = decode(encoded)
     const actionPayload = messageField(action, 2)
+    const chaincodeProposalPayload = bytesField(actionPayload, 1)
+    const endorsed = messageField(actionPayload, 2)
     return {
       creator: parseIdentity(bytesField(messageField(action, 1), 1)),
-      invocation: parseProposalPayload(bytesField(actionPayload, 1)).invocation
+      invocation: parseProposalPayload(chaincodeProposalPayload).invocation,
+      chaincodeProposalPayload,
+      proposalHash: bytesField(messageField(endorsed, 1), 1)
     }
   })
 

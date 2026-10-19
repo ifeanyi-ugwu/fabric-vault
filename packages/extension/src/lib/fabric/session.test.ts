@@ -11,6 +11,7 @@ import {
   OTHER_CERT,
   preparedTransaction,
   proposal,
+  withTxId,
   type CallOptions
 } from "./fixtures"
 import { SigningSession, VerificationError, type ApprovedCall } from "./session"
@@ -48,7 +49,10 @@ describe("a call that matches what was approved", () => {
     const session = new SigningSession(approved())
     const { bytes, txId } = proposal()
     await session.verify("proposal", bytes)
-    await session.verify("transaction", preparedTransaction({ txId }))
+    await session.verify(
+      "transaction",
+      preparedTransaction({ proposalBytes: bytes, txId })
+    )
     await session.verify("commit", commitRequest({ txId }))
   })
 
@@ -145,10 +149,13 @@ describe("a proposal that differs from what was approved", () => {
 
 describe("a transaction or commit request", () => {
   it("is refused before any proposal is signed", async () => {
-    const { txId } = proposal()
+    const { bytes, txId } = proposal()
     const session = new SigningSession(approved())
     await refused(
-      session.verify("transaction", preparedTransaction({ txId })),
+      session.verify(
+        "transaction",
+        preparedTransaction({ proposalBytes: bytes, txId })
+      ),
       /No proposal/
     )
     await refused(
@@ -159,10 +166,14 @@ describe("a transaction or commit request", () => {
 
   it("is refused for a different transaction ID", async () => {
     const session = new SigningSession(approved())
-    await session.verify("proposal", proposal().bytes)
+    const { bytes } = proposal()
+    await session.verify("proposal", bytes)
     const other = proposal().txId
     await refused(
-      session.verify("transaction", preparedTransaction({ txId: other })),
+      session.verify(
+        "transaction",
+        preparedTransaction({ proposalBytes: bytes, txId: other })
+      ),
       /different transaction/
     )
     await refused(
@@ -178,7 +189,7 @@ describe("a transaction or commit request", () => {
     await refused(
       session.verify(
         "transaction",
-        preparedTransaction({ txId, channel: "other" })
+        preparedTransaction({ proposalBytes: bytes, txId, channel: "other" })
       ),
       /different transaction/
     )
@@ -195,7 +206,7 @@ describe("a transaction or commit request", () => {
     await refused(
       session.verify(
         "transaction",
-        preparedTransaction({ txId, cert: OTHER_CERT })
+        preparedTransaction({ proposalBytes: bytes, txId, cert: OTHER_CERT })
       ),
       /identity/
     )
@@ -212,7 +223,11 @@ describe("a transaction or commit request", () => {
     await refused(
       session.verify(
         "transaction",
-        preparedTransaction({ txId, args: ["asset1", "Eve"] })
+        preparedTransaction({
+          proposalBytes: bytes,
+          txId,
+          args: ["asset1", "Eve"]
+        })
       ),
       /approved call/
     )
@@ -223,7 +238,10 @@ describe("a transaction or commit request", () => {
     const { bytes, txId } = proposal()
     await session.verify("proposal", bytes)
     await refused(
-      session.verify("transaction", preparedTransaction({ txId, actions: 0 })),
+      session.verify(
+        "transaction",
+        preparedTransaction({ proposalBytes: bytes, txId, actions: 0 })
+      ),
       /no actions/
     )
   })
@@ -240,7 +258,7 @@ describe("the kinds a method may sign", () => {
     await session.verify("proposal", bytes)
     const request =
       kind === "transaction"
-        ? preparedTransaction({ txId })
+        ? preparedTransaction({ proposalBytes: bytes, txId })
         : commitRequest({ txId })
     await refused(session.verify(kind, request), pattern)
   }
@@ -268,7 +286,10 @@ describe("the kinds a method may sign", () => {
     )
     const { bytes, txId } = proposal()
     await session.verify("proposal", bytes)
-    await session.verify("transaction", preparedTransaction({ txId }))
+    await session.verify(
+      "transaction",
+      preparedTransaction({ proposalBytes: bytes, txId })
+    )
   })
 
   it("refuses an event request for a call", async () => {
@@ -356,8 +377,10 @@ describe("a block event subscription", () => {
   })
 
   it("refuses an envelope whose header is not a seek request", async () => {
-    const { txId } = proposal()
-    const prepared = Uint8Array.from(preparedTransaction({ txId }))
+    const { bytes, txId } = proposal()
+    const prepared = Uint8Array.from(
+      preparedTransaction({ proposalBytes: bytes, txId })
+    )
     // PreparedTransaction wraps the envelope at field 2; a block events
     // request is the envelope alone, so unwrap it.
     const envelope = gateway.PreparedTransaction.deserializeBinary(prepared)
@@ -366,6 +389,78 @@ describe("a block event subscription", () => {
     await refused(
       subscription().verify("blockEvents", envelope),
       /not a block seek request/
+    )
+  })
+})
+
+describe("what binds the transaction to the proposal", () => {
+  it("refuses a proposal whose transaction ID is not derived from its nonce and creator", async () => {
+    const forged = withTxId(proposal().bytes, "00".repeat(32))
+    await refused(
+      new SigningSession(approved()).verify("proposal", forged),
+      /not derived from the proposal's nonce and creator/
+    )
+  })
+
+  it("refuses an endorsed transaction that answers another proposal", async () => {
+    const session = new SigningSession(approved())
+    const signed = proposal()
+    await session.verify("proposal", signed.bytes)
+    // Same call, same creator, different nonce: only the hash tells them apart.
+    const other = proposal()
+    await refused(
+      session.verify(
+        "transaction",
+        preparedTransaction({
+          proposalBytes: other.bytes,
+          txId: signed.txId
+        })
+      ),
+      /not for the proposal that was signed/
+    )
+  })
+
+  it("refuses an endorsed transaction with a proposal hash that matches nothing", async () => {
+    const session = new SigningSession(approved())
+    const { bytes, txId } = proposal()
+    await session.verify("proposal", bytes)
+    await refused(
+      session.verify(
+        "transaction",
+        preparedTransaction({
+          proposalBytes: bytes,
+          txId,
+          proposalHash: new Uint8Array(32)
+        })
+      ),
+      /not for the proposal that was signed/
+    )
+  })
+
+  it("refuses an endorsed transaction with no proposal hash", async () => {
+    const session = new SigningSession(approved())
+    const { bytes, txId } = proposal()
+    await session.verify("proposal", bytes)
+    await refused(
+      session.verify(
+        "transaction",
+        preparedTransaction({
+          proposalBytes: bytes,
+          txId,
+          proposalHash: new Uint8Array(0)
+        })
+      ),
+      /not for the proposal that was signed/
+    )
+  })
+
+  it("checks every action against the proposal hash", async () => {
+    const session = new SigningSession(approved())
+    const { bytes, txId } = proposal()
+    await session.verify("proposal", bytes)
+    await session.verify(
+      "transaction",
+      preparedTransaction({ proposalBytes: bytes, txId, actions: 2 })
     )
   })
 })
