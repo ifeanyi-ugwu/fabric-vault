@@ -12,14 +12,30 @@ interface EventSubscription {
 const DEFAULT_SIGNATURE_TIMEOUT_MS =
   Number(process.env.GATEWAY_SIGNATURE_TIMEOUT_MS) || 30 * 1000;
 
+export interface HandlerOptions {
+  signatureTimeoutMs?: number;
+  maxBatchSize?: number;
+  maxConcurrentRequests?: number;
+  maxSubscriptions?: number;
+}
+
 export class JsonRpcHandler {
   private subscriptions: Record<string, EventSubscription> = {};
   private fabricService: FabricService | null = null;
 
-  constructor(
-    private ws: WebSocket,
-    private signatureTimeoutMs = DEFAULT_SIGNATURE_TIMEOUT_MS
-  ) {}
+  private inFlight = 0;
+  private signatureTimeoutMs: number;
+  private maxBatchSize: number;
+  private maxConcurrentRequests: number;
+  private maxSubscriptions: number;
+
+  constructor(private ws: WebSocket, options: HandlerOptions = {}) {
+    this.signatureTimeoutMs =
+      options.signatureTimeoutMs ?? DEFAULT_SIGNATURE_TIMEOUT_MS;
+    this.maxBatchSize = options.maxBatchSize ?? Infinity;
+    this.maxConcurrentRequests = options.maxConcurrentRequests ?? Infinity;
+    this.maxSubscriptions = options.maxSubscriptions ?? Infinity;
+  }
 
   // Send JSON-RPC response
   private sendResponse(id: string, result: any): void {
@@ -83,6 +99,24 @@ export class JsonRpcHandler {
       return;
     }
 
+    const requestCount = Array.isArray(parsed) ? parsed.length : 1;
+    if (requestCount > this.maxBatchSize) {
+      this.sendError(null, -32600, "Invalid Request: Batch too large");
+      return;
+    }
+    if (this.inFlight + requestCount > this.maxConcurrentRequests) {
+      this.sendError(null, -32005, "Too many concurrent requests");
+      return;
+    }
+    this.inFlight += requestCount;
+    try {
+      await this.processParsed(parsed);
+    } finally {
+      this.inFlight -= requestCount;
+    }
+  }
+
+  private async processParsed(parsed: any): Promise<void> {
     if (Array.isArray(parsed)) {
       if (parsed.length === 0) {
         this.sendError(null, -32600, "Invalid Request: Empty batch");
@@ -459,6 +493,10 @@ export class JsonRpcHandler {
 
   async handleSubscribe(id: string, params: any) {
     this.ensureCorrectParams(id, params, ["eventType"]);
+
+    if (Object.keys(this.subscriptions).length >= this.maxSubscriptions) {
+      return this.buildError(id, -32005, "Too many subscriptions");
+    }
 
     const { eventType } = params;
     if (eventType !== "chaincode" && eventType !== "block") {

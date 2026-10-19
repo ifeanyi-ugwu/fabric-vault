@@ -14,7 +14,7 @@ const TIMEOUT_MS = 1000;
 
 function setup() {
   const ws = new FakeSocket();
-  const sign = new JsonRpcHandler(ws as any, TIMEOUT_MS).createSigner("CERT");
+  const sign = new JsonRpcHandler(ws as any, { signatureTimeoutMs: TIMEOUT_MS }).createSigner("CERT");
   const request = () => ws.sent[ws.sent.length - 1];
   const reply = (payload: object) =>
     ws.emit("message", Buffer.from(JSON.stringify({ jsonrpc: "2.0", ...payload })));
