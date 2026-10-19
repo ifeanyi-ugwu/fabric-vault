@@ -9,7 +9,7 @@ import {
 export async function initGateway(
   client: GrpcClient,
   identity: Identity,
-  signer: Signer
+  signer?: Signer
 ) {
   const gateway = connect({
     client,

@@ -1,6 +1,6 @@
 import { Signer } from "@hyperledger/fabric-gateway";
 import WebSocket from "ws";
-import { FabricService } from "./fabric.service";
+import { FabricService, RequestSigner, Signing } from "./fabric.service";
 
 interface EventSubscription {
   closeListener: () => void;
@@ -13,6 +13,8 @@ const DEFAULT_SIGNATURE_TIMEOUT_MS =
   Number(process.env.GATEWAY_SIGNATURE_TIMEOUT_MS) || 30 * 1000;
 
 export interface HandlerOptions {
+  /** Replaces how a Fabric service is built; tests supply a stub. */
+  createService?: typeof FabricService.createForUser;
   signatureTimeoutMs?: number;
   maxBatchSize?: number;
   maxConcurrentRequests?: number;
@@ -24,12 +26,17 @@ export class JsonRpcHandler {
   private fabricService: FabricService | null = null;
 
   private inFlight = 0;
+  private createService: typeof FabricService.createForUser;
+  // Fixed by the first request: a client cannot switch protocols mid-connection.
+  private signRequestSupported: boolean | null = null;
   private signatureTimeoutMs: number;
   private maxBatchSize: number;
   private maxConcurrentRequests: number;
   private maxSubscriptions: number;
 
   constructor(private ws: WebSocket, options: HandlerOptions = {}) {
+    this.createService =
+      options.createService ?? FabricService.createForUser.bind(FabricService);
     this.signatureTimeoutMs =
       options.signatureTimeoutMs ?? DEFAULT_SIGNATURE_TIMEOUT_MS;
     this.maxBatchSize = options.maxBatchSize ?? Infinity;
@@ -185,6 +192,7 @@ export class JsonRpcHandler {
     try {
       // Validate params or throw error
       this.validateRequiredParams(params);
+      this.noteCapabilities(params);
 
       // Initialize fabricService lazily if not already created
       if (!this.fabricService) {
@@ -200,10 +208,9 @@ export class JsonRpcHandler {
           mspId: identity.mspId,
           credentials: new Uint8Array(Buffer.from(identity.certificate)),
         };
-        const signer = this.createSigner(identity.certificate);
-        this.fabricService = await FabricService.createForUser(
+        this.fabricService = await this.createService(
           fabricIdentity,
-          signer,
+          this.signing(identity.certificate),
           {
             name: peer.name,
             endpoint: peer.endpoint,
@@ -268,9 +275,37 @@ export class JsonRpcHandler {
     });
   }
 
+  /** Signs digests: the protocol for clients that do not advertise `signRequest`. */
   createSigner(certificate: string): Signer {
     return (digest: Uint8Array): Promise<Uint8Array> =>
-      this.requestSignature(digest, certificate);
+      this.requestSignature(
+        "signDigest",
+        { digest: Buffer.from(digest).toString("base64") },
+        certificate
+      );
+  }
+
+  /** Signs serialized requests, so the client can check what it signs. */
+  createRequestSigner(certificate: string): RequestSigner {
+    return (kind, bytes) =>
+      this.requestSignature(
+        "signRequest",
+        { kind, bytes: Buffer.from(bytes).toString("base64") },
+        certificate
+      );
+  }
+
+  private signing(certificate: string): Signing {
+    return this.signRequestSupported
+      ? { request: this.createRequestSigner(certificate) }
+      : { digest: this.createSigner(certificate) };
+  }
+
+  private noteCapabilities(params: any): void {
+    if (this.signRequestSupported !== null) return;
+    this.signRequestSupported =
+      Array.isArray(params?.capabilities) &&
+      params.capabilities.includes("signRequest");
   }
 
   private async createFabricService(
@@ -290,13 +325,15 @@ export class JsonRpcHandler {
       mspId: identity.mspId,
       credentials: new Uint8Array(Buffer.from(identity.certificate)),
     };
-    const signer = this.createSigner(identity.certificate);
-
-    return await FabricService.createForUser(fabricIdentity, signer, {
-      name: peer.name,
-      endpoint: peer.endpoint,
-      tlsRootCert: peer.tlsRootCert,
-    });
+    return await this.createService(
+      fabricIdentity,
+      this.signing(identity.certificate),
+      {
+        name: peer.name,
+        endpoint: peer.endpoint,
+        tlsRootCert: peer.tlsRootCert,
+      }
+    );
   }
 
   /**
@@ -304,7 +341,8 @@ export class JsonRpcHandler {
    * a reply, an error reply, a closed socket, or the timeout.
    */
   private requestSignature(
-    digest: Uint8Array,
+    method: "signDigest" | "signRequest",
+    material: Record<string, string>,
     certificate: string
   ): Promise<Uint8Array> {
     return new Promise((resolve, reject) => {
@@ -351,11 +389,8 @@ export class JsonRpcHandler {
         this.ws.send(
           JSON.stringify({
             jsonrpc: "2.0",
-            method: "signDigest",
-            params: {
-              digest: Buffer.from(digest).toString("base64"),
-              certificate,
-            },
+            method,
+            params: { ...material, certificate },
             id: requestId,
           })
         );
