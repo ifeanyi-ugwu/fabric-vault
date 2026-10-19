@@ -5,6 +5,9 @@
  *
  * fabric_peer: Get the currently connected Fabric peer endpoint.
  *
+ * fabric_requestPeer: Ask the user to add a peer and use it. The user approves
+ * in a prompt; the site can never change the peer without it.
+ *
  * fabric_evaluateTransaction: Simulate a transaction without modifying ledger state.
  *
  * fabric_submitTransaction: Submit a state-changing transaction; waits for ledger commit.
@@ -19,6 +22,7 @@ export type FabricMethods =
   | "fabric_requestIdentities"
   | "fabric_identities"
   | "fabric_peer"
+  | "fabric_requestPeer"
   | "fabric_evaluateTransaction"
   | "fabric_submitTransaction"
   | "fabric_submitAsync"

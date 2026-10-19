@@ -221,6 +221,32 @@
       </div>
 
       <div class="button-group">
+        <h2>Peer</h2>
+        <p>
+          Read the peer the wallet is using, or ask the user to use another.
+          The wallet asks every time, and a site cannot set it silently.
+        </p>
+        <button id="get-peer-btn">Get Peer</button>
+        <div class="form-group">
+          <label for="peer-name-input">Name:</label>
+          <input id="peer-name-input" value="peer0.org1.example.com" />
+        </div>
+        <div class="form-group">
+          <label for="peer-endpoint-input">Peer endpoint (host:port):</label>
+          <input id="peer-endpoint-input" value="localhost:7051" />
+        </div>
+        <div class="form-group">
+          <label for="peer-rpc-input">Gateway URL:</label>
+          <input id="peer-rpc-input" value="ws://localhost:7545" />
+        </div>
+        <div class="form-group">
+          <label for="peer-cert-input">TLS root certificate (PEM, optional):</label>
+          <textarea id="peer-cert-input" rows="3"></textarea>
+        </div>
+        <button id="request-peer-btn">Request Peer</button>
+      </div>
+
+      <div class="button-group">
         <h2>Specific Transactions</h2>
         <p>These buttons use pre-defined parameters and a selected identity.</p>
         <button id="evaluate-all-assets-btn" disabled>
@@ -453,6 +479,33 @@
         );
         return null;
       }
+
+      document.getElementById("get-peer-btn").addEventListener("click", async () => {
+        try {
+          const peer = await window.fabric.request({ method: "fabric_peer" });
+          displayOutput("Current Peer", peer, "success");
+        } catch (error) {
+          displayOutput("Get Peer Error", error.message || error, "error");
+        }
+      });
+
+      document.getElementById("request-peer-btn").addEventListener("click", async () => {
+        const cert = document.getElementById("peer-cert-input").value.trim();
+        try {
+          const peer = await window.fabric.request({
+            method: "fabric_requestPeer",
+            params: {
+              name: document.getElementById("peer-name-input").value,
+              endpoint: document.getElementById("peer-endpoint-input").value,
+              rpcUrl: document.getElementById("peer-rpc-input").value,
+              ...(cert ? { tlsRootCert: cert } : {}),
+            },
+          });
+          displayOutput("Request Peer Result", peer, "success");
+        } catch (error) {
+          displayOutput("Request Peer Error", error.message || error, "error");
+        }
+      });
 
       function initializeEventListeners() {
         displayOutput("Initialization", "Event listeners are being set up...");
