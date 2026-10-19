@@ -3,6 +3,7 @@ import express, { NextFunction, Request, Response, Express } from "express";
 import http from "http";
 import { WebSocketServer } from "ws";
 import { JsonRpcHandler } from "./jsonrpc.handler";
+import { tokenFromUrl, tokenMatches } from "./lib/token";
 import {
   clientAddress,
   ConnectionLimiter,
@@ -11,16 +12,27 @@ import {
   RateLimiter,
 } from "./lib/limits";
 
-export function createApp(overrides: Partial<GatewayLimits> = {}): {
+export interface GatewayOptions extends Partial<GatewayLimits> {
+  /** When set, a WebSocket upgrade must carry it as `?token=`. */
+  token?: string;
+}
+
+export function createApp(options: GatewayOptions = {}): {
   app: Express;
   server: http.Server;
 } {
+  const { token = process.env.GATEWAY_TOKEN || undefined, ...overrides } =
+    options;
   const limits = { ...loadLimits(), ...overrides };
   const app = express();
   const server = http.createServer(app);
   const wss = new WebSocketServer({
     server,
     maxPayload: limits.maxPayloadBytes,
+    verifyClient: token
+      ? ({ req }: { req: http.IncomingMessage }) =>
+          tokenMatches(tokenFromUrl(req.url), token)
+      : undefined,
   });
   const connections = new ConnectionLimiter(limits.maxConnectionsPerClient);
 

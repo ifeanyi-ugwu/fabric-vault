@@ -1,14 +1,13 @@
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
 import { afterEach, describe, it } from "node:test";
-import { createApp } from "./app";
-import type { GatewayLimits } from "./lib/limits";
+import { createApp, GatewayOptions } from "./app";
 
 const servers: Array<import("node:http").Server> = [];
 const sockets: WebSocket[] = [];
 
-async function start(limits: Partial<GatewayLimits>) {
-  const { server } = createApp(limits);
+async function start(options: GatewayOptions) {
+  const { server } = createApp(options);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   servers.push(server);
   return `ws://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -120,3 +119,37 @@ describe("gateway limits", () => {
     socket.close();
   });
 });
+
+describe("gateway token", () => {
+  const rejected = (url: string) =>
+    new Promise<boolean>((resolve) => {
+      const socket = new WebSocket(url);
+      sockets.push(socket);
+      socket.onopen = () => resolve(false);
+      socket.onerror = () => resolve(true);
+    });
+
+  it("refuses a connection without the token", async () => {
+    const url = await start({ token: "s3cret" });
+    assert.equal(await rejected(url), true);
+  });
+
+  it("refuses a connection with the wrong token", async () => {
+    const url = await start({ token: "s3cret" });
+    assert.equal(await rejected(`${url}/?token=nope`), true);
+  });
+
+  it("accepts a connection with the token", async () => {
+    const url = await start({ token: "s3cret" });
+    const socket = await opened(`${url}/?token=s3cret`);
+    const reply = nextMessage(socket);
+    socket.send("not json");
+    assert.equal((await reply).error.code, -32700);
+  });
+
+  it("accepts any connection when no token is set", async () => {
+    const url = await start({});
+    assert.equal(await rejected(url), false);
+  });
+});
+
