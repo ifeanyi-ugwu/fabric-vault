@@ -24,7 +24,7 @@
     "start": "node dist/main.js",
     "dev": "tsx watch src/main.ts",
     "build": "tsup",
-    "test": "tsx --test src/**/*.test.ts"
+    "test": "tsx --test \"src/**/*.test.ts\""
   },
   "keywords": [],
   "author": "",

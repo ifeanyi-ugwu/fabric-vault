@@ -7,11 +7,19 @@ interface EventSubscription {
   service: FabricService; // Keep reference for cleanup
 }
 
+// Bounds how long a call waits on the client's signature; without it a client
+// that stops answering holds the call, its listeners and its gRPC stream open.
+const DEFAULT_SIGNATURE_TIMEOUT_MS =
+  Number(process.env.GATEWAY_SIGNATURE_TIMEOUT_MS) || 30 * 1000;
+
 export class JsonRpcHandler {
   private subscriptions: Record<string, EventSubscription> = {};
   private fabricService: FabricService | null = null;
 
-  constructor(private ws: WebSocket) {}
+  constructor(
+    private ws: WebSocket,
+    private signatureTimeoutMs = DEFAULT_SIGNATURE_TIMEOUT_MS
+  ) {}
 
   // Send JSON-RPC response
   private sendResponse(id: string, result: any): void {
@@ -227,13 +235,8 @@ export class JsonRpcHandler {
   }
 
   createSigner(certificate: string): Signer {
-    return async (digest: Uint8Array): Promise<Uint8Array> => {
-      const signature = await this.requestSignature(digest, certificate);
-      if (!signature) {
-        throw new Error("Signature not received");
-      }
-      return signature;
-    };
+    return (digest: Uint8Array): Promise<Uint8Array> =>
+      this.requestSignature(digest, certificate);
   }
 
   private async createFabricService(
@@ -263,44 +266,69 @@ export class JsonRpcHandler {
   }
 
   /**
-   * Requests a signature via WebSocket
+   * Requests a signature via WebSocket. Every exit path removes its listeners:
+   * a reply, an error reply, a closed socket, or the timeout.
    */
-  private async requestSignature(
+  private requestSignature(
     digest: Uint8Array,
     certificate: string
-  ): Promise<Uint8Array | null> {
-    return new Promise((resolve) => {
+  ): Promise<Uint8Array> {
+    return new Promise((resolve, reject) => {
       const requestId = generateUniqueId();
-      const handler = (rawMsg: WebSocket.RawData) => {
+
+      const finish = () => {
+        clearTimeout(timer);
+        this.ws.off("message", onMessage);
+        this.ws.off("close", onClose);
+      };
+      const onMessage = (rawMsg: WebSocket.RawData) => {
+        let reply: any;
         try {
-          const reply = JSON.parse(rawMsg.toString());
-          if (
-            reply.jsonrpc === "2.0" &&
-            reply.id === requestId &&
-            reply.result?.signature
-          ) {
-            this.ws.off("message", handler);
-            resolve(
-              Uint8Array.from(Buffer.from(reply.result.signature, "base64"))
-            );
-          }
+          reply = JSON.parse(rawMsg.toString());
         } catch {
-          this.ws.off("message", handler);
-          resolve(null);
+          return; // not ours; other traffic shares this socket
+        }
+        if (reply?.jsonrpc !== "2.0" || reply.id !== requestId) return;
+        finish();
+        if (reply.result?.signature) {
+          resolve(
+            Uint8Array.from(Buffer.from(reply.result.signature, "base64"))
+          );
+        } else {
+          reject(new Error(reply.error?.message ?? "Signature request failed"));
         }
       };
-      this.ws.on("message", handler);
-      this.ws.send(
-        JSON.stringify({
-          jsonrpc: "2.0",
-          method: "signDigest",
-          params: {
-            digest: Buffer.from(digest).toString("base64"),
-            certificate,
-          },
-          id: requestId,
-        })
-      );
+      const onClose = () => {
+        finish();
+        reject(new Error("Connection closed before a signature was returned"));
+      };
+      const timer = setTimeout(() => {
+        finish();
+        reject(
+          new Error(
+            `Signature request timed out after ${this.signatureTimeoutMs}ms`
+          )
+        );
+      }, this.signatureTimeoutMs);
+
+      this.ws.on("message", onMessage);
+      this.ws.on("close", onClose);
+      try {
+        this.ws.send(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            method: "signDigest",
+            params: {
+              digest: Buffer.from(digest).toString("base64"),
+              certificate,
+            },
+            id: requestId,
+          })
+        );
+      } catch (err) {
+        finish();
+        reject(err);
+      }
     });
   }
 
