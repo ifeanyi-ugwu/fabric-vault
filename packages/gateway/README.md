@@ -48,6 +48,29 @@ By default, the server runs on port `7545`. You can specify a different port usi
 PORT=8080 hfgateway
 ```
 
+### Configuration
+
+The gateway holds no keys and accepts any client unless a token is set. Every setting is an environment variable.
+
+| Variable | Default | Effect |
+| --- | --- | --- |
+| `PORT` | `7545` | Listening port. |
+| `GATEWAY_ALLOW_PRIVATE_PEERS` | `false` | Allows peers on loopback, private and link-local addresses. A peer whose host resolves to one of those is otherwise refused, so a client cannot aim the gateway at its own network. Set this to `true` when the gateway runs next to a local Fabric network. |
+| `GATEWAY_TOKEN` | unset | When set, a WebSocket upgrade must carry `?token=<value>`. The token appears in proxy access logs, so serve the gateway over `wss://`. |
+| `GATEWAY_TRUST_PROXY` | `false` | Keys the per-client connection limit on the first `X-Forwarded-For` entry. Set it only behind a proxy that overwrites that header. |
+| `GATEWAY_MAX_CONNECTIONS_PER_IP` | `20` | Simultaneous connections from one client address. |
+| `GATEWAY_MAX_PAYLOAD_BYTES` | `1048576` | Largest accepted WebSocket message. |
+| `GATEWAY_MESSAGES_PER_SECOND` | `20` | Sustained message rate of one connection. |
+| `GATEWAY_MESSAGE_BURST` | `40` | Messages one connection may send at once. A connection that exceeds the rate is closed. |
+| `GATEWAY_MAX_BATCH_SIZE` | `20` | Requests in one JSON-RPC batch. |
+| `GATEWAY_MAX_CONCURRENT_REQUESTS` | `32` | Requests in flight on one connection. |
+| `GATEWAY_MAX_SUBSCRIPTIONS` | `10` | Open subscriptions on one connection. |
+| `GATEWAY_FIRST_MESSAGE_TIMEOUT_MS` | `30000` | A connection that sends nothing for this long is closed. |
+| `GATEWAY_PING_INTERVAL_MS` | `30000` | Liveness ping interval; a connection that misses one is dropped. |
+| `GATEWAY_SIGNATURE_TIMEOUT_MS` | `30000` | How long a call waits for the client's signature. |
+
+The gateway sees every transaction's arguments and results, and the certificate of the identity that sends them, because TLS to the peer ends here. It does not see private keys.
+
 ### JSON-RPC Methods
 
 All methods are invoked over a WebSocket connection.
@@ -156,11 +179,42 @@ Unsubscribes from an active event stream.
 
 - `boolean` `true` if the subscription was successfully canceled, `false` otherwise.
 
-### Signature Request (`signDigest` request)
+### Signature requests
 
-When submitting transactions, the gateway will send a `signDigest` request to the client. The client is expected to sign the digest and send back a JSON-RPC response with the signature.
+The gateway holds no keys. Each call that signs asks the client for signatures over a WebSocket, and the client answers with a JSON-RPC response.
 
-**Notification:**
+A client chooses the protocol with the first request of a connection: `capabilities` in the `params` of that request, listing `"signRequest"`, selects `signRequest`. Any other value, or none, selects `signDigest`. The choice holds for the life of the connection.
+
+An `evaluate` is signed once, a `fabric_submitTransaction` three times (proposal, endorsed transaction, commit status request), a `fabric_submitAsync` twice, and a `fabric_subscribe` once.
+
+#### `signRequest`
+
+The gateway sends the serialized request, so the client can read what it is signing and sign the SHA-256 hash of the bytes the Fabric Gateway client library hashes.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "signRequest",
+  "params": {
+    "kind": "proposal",
+    "bytes": "base64EncodedSerializedRequest",
+    "certificate": "certificate string from identity.certificate"
+  },
+  "id": "requestId"
+}
+```
+
+| `kind` | `bytes` |
+| --- | --- |
+| `proposal` | `Proposal.getBytes()`: a `gateway.ProposedTransaction` |
+| `transaction` | `Transaction.getBytes()`: a `gateway.PreparedTransaction` |
+| `commit` | `Commit.getBytes()`: a `gateway.SignedCommitStatusRequest` |
+| `chaincodeEvents` | `ChaincodeEventsRequest.getBytes()`: a `gateway.SignedChaincodeEventsRequest` |
+| `blockEvents` | `BlockEventsRequest.getBytes()`: a `common.Envelope` |
+
+#### `signDigest`
+
+The gateway sends the hash only. The client cannot tell what the hash covers.
 
 ```json
 {
@@ -168,15 +222,15 @@ When submitting transactions, the gateway will send a `signDigest` request to th
   "method": "signDigest",
   "params": {
     "digest": "base64EncodedDigest",
-    "certificate": "base64EncodedPEMCertificate"
+    "certificate": "certificate string from identity.certificate"
   },
   "id": "requestId"
 }
 ```
 
-**Client Response:**
+#### Client response
 
-The client must respond with a JSON-RPC response containing the signature.
+For both protocols the client answers with the signature, or with an error to refuse.
 
 ```json
 {
@@ -188,6 +242,16 @@ The client must respond with a JSON-RPC response containing the signature.
 }
 ```
 
+```json
+{
+  "jsonrpc": "2.0",
+  "error": { "code": -32001, "message": "reason" },
+  "id": "requestId"
+}
+```
+
+A request that gets no reply fails after `GATEWAY_SIGNATURE_TIMEOUT_MS`.
+
 ---
 
 ## Development
@@ -196,6 +260,8 @@ The client must respond with a JSON-RPC response containing the signature.
 pnpm install
 pnpm dev # Runs with tsx-watch
 pnpm build # Compiles to dist/
+pnpm test # Unit and integration tests
+pnpm typecheck
 ```
 
 ---
@@ -206,7 +272,7 @@ pnpm build # Compiles to dist/
 - `src/app.ts`: Sets up the Express and WebSocket servers.
 - `src/jsonrpc.handler.ts`: Handles incoming JSON-RPC messages and dispatches to `FabricService`.
 - `src/fabric.service.ts`: Abstracts Hyperledger Fabric Gateway interactions.
-- `src/lib/`: Contains utility functions for gRPC client and gateway initialization.
+- `src/lib/`: gRPC client and gateway initialization, peer endpoint validation, connection limits and the connection token.
 
 ---
 
