@@ -153,7 +153,9 @@ export class Wallet {
 
     // If the index needed updating (i.e., certHashToRemove was found and index was modified)
     if (updatedIndex) {
-      await browser.storage.local.set({ [this.certificateIndexKey]: JSON.stringify(updatedIndex) })
+      await browser.storage.local.set({
+        [this.certificateIndexKey]: JSON.stringify(updatedIndex)
+      })
     }
     // Note: If updatedIndex was undefined, it means no index update was needed (identity not found, or no cert).
   }

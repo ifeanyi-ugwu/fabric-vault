@@ -1,6 +1,6 @@
 import type { PlasmoCSConfig } from "plasmo"
-import browser from "webextension-polyfill"
 import INJECTED_SCRIPT_PATH from "url:~src/injected"
+import browser from "webextension-polyfill"
 
 export const config: PlasmoCSConfig = {
   matches: ["<all_urls>"],

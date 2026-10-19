@@ -38,7 +38,9 @@ const UnlockWallet = () => {
         </form>
 
         <div className="onboarding-footer">
-          <Button variant="text" onClick={() => navigate({ to: "/create-wallet" })}>
+          <Button
+            variant="text"
+            onClick={() => navigate({ to: "/create-wallet" })}>
             Create a new wallet instead
           </Button>
         </div>

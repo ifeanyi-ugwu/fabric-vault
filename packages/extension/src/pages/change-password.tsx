@@ -46,7 +46,9 @@ export const ChangePassword = () => {
           </div>
 
           {errorMessage && <div className="error-message">{errorMessage}</div>}
-          {successMessage && <div className="success-message">{successMessage}</div>}
+          {successMessage && (
+            <div className="success-message">{successMessage}</div>
+          )}
 
           <div className="form-actions">
             <Button variant="outline" onClick={handleCancel} disabled={loading}>

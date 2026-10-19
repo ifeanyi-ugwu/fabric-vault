@@ -1,10 +1,11 @@
-import type { PlasmoMessaging } from "@plasmohq/messaging"
 import browser from "webextension-polyfill"
 
+import type { PlasmoMessaging } from "@plasmohq/messaging"
+
+import { pendingRequestResolvers } from "~background/state"
 import type { Identity } from "~contexts/identity"
 import type { Peer } from "~contexts/peer"
 import type { SiteIdentityConnection } from "~hooks/use-identity-to-site-connection"
-import { pendingRequestResolvers } from "~background/state"
 import { emitEventToDapp, getStoredConnections } from "~services/connection"
 
 export type RequestBody = {
@@ -26,7 +27,10 @@ async function storeConnection(origin: string, labels: string[]) {
         )
     )
 
-  storedConnections.set(origin, [...existingConnectionsForSite, ...newConnections])
+  storedConnections.set(origin, [
+    ...existingConnectionsForSite,
+    ...newConnections
+  ])
 
   const connectionsObject = Object.fromEntries(storedConnections)
   await browser.storage.local.set({

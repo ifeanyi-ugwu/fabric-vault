@@ -1,16 +1,17 @@
 import type { PlasmoMessaging } from "@plasmohq/messaging"
 
+import type { Identity } from "~contexts/identity"
 import { ensureWalletReady } from "~services/session"
 import { getIdentities } from "~services/wallet"
 
 export type ResponseBody =
-  | { success: true; identities: unknown[] }
+  | { success: true; identities: Identity[] }
   | { success: false; error: string }
 
-const handler: PlasmoMessaging.MessageHandler<
-  never,
-  ResponseBody
-> = async (_req, res) => {
+const handler: PlasmoMessaging.MessageHandler<never, ResponseBody> = async (
+  _req,
+  res
+) => {
   if (!(await ensureWalletReady())) {
     res.send({ success: false, error: "Wallet is locked." })
     return

@@ -154,6 +154,8 @@ export const handleChangePassword = async (newPassword: string) => {
 }
 
 export const hasVault = async () => {
-  const result = await browser.storage.local.get(STORAGE_KEYS.VERIFICATION_TOKEN)
+  const result = await browser.storage.local.get(
+    STORAGE_KEYS.VERIFICATION_TOKEN
+  )
   return !!result[STORAGE_KEYS.VERIFICATION_TOKEN]
 }

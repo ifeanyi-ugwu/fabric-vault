@@ -16,7 +16,8 @@ export const IdentityCard = ({
   onClick,
   onDelete
 }: IdentityCardProps) => {
-  const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] = useState(false)
+  const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] =
+    useState(false)
 
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -53,7 +54,10 @@ export const IdentityCard = ({
           }}>
           <span className="copy-icon" />
         </button>
-        <button className="icon-button" title="Export certificate" onClick={(e) => e.stopPropagation()}>
+        <button
+          className="icon-button"
+          title="Export certificate"
+          onClick={(e) => e.stopPropagation()}>
           <span className="export-icon" />
         </button>
         <button
@@ -66,13 +70,19 @@ export const IdentityCard = ({
 
       {isDeleteConfirmationOpen && (
         <div className="confirmation-overlay" onClick={cancelDelete}>
-          <div className="confirmation-dialog" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="confirmation-dialog"
+            onClick={(e) => e.stopPropagation()}>
             <p>Are you sure you want to delete identity "{identity.label}"?</p>
             <div className="confirmation-buttons">
               <Button onClick={confirmDelete} size="small">
                 Confirm
               </Button>
-              <Button onClick={cancelDelete} variant="outline" size="small" fullWidth>
+              <Button
+                onClick={cancelDelete}
+                variant="outline"
+                size="small"
+                fullWidth>
                 Cancel
               </Button>
             </div>

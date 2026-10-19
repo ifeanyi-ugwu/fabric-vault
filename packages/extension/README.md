@@ -23,14 +23,14 @@ pnpm package    # zips for Chrome Web Store submission
 
 ## Architecture
 
-| File | Role |
-| ---- | ---- |
-| `src/popup.tsx` | Extension popup — React app entry point |
-| `src/background.ts` | Service worker — routes messages, manages vault state, keeps WebSocket alive |
-| `src/content.ts` | Content script — bridges webpage messages to the background |
-| `src/injected.ts` | Injected into every page — exposes `window.fabric` and handles provider discovery |
-| `src/pages/` | Individual UI screens (dashboard, add identity, sign request, etc.) |
-| `src/contexts/` | React contexts for vault, identity, peer, connection, and request state |
+| File                | Role                                                                              |
+| ------------------- | --------------------------------------------------------------------------------- |
+| `src/popup.tsx`     | Extension popup — React app entry point                                           |
+| `src/background.ts` | Service worker — routes messages, manages vault state, keeps WebSocket alive      |
+| `src/content.ts`    | Content script — bridges webpage messages to the background                       |
+| `src/injected.ts`   | Injected into every page — exposes `window.fabric` and handles provider discovery |
+| `src/pages/`        | Individual UI screens (dashboard, add identity, sign request, etc.)               |
+| `src/contexts/`     | React contexts for vault, identity, peer, connection, and request state           |
 
 **Message flow:** webpage → `injected.ts` → `content.ts` → `background.ts` → Fabric network via gateway
 

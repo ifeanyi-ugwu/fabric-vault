@@ -14,6 +14,18 @@ import { sessionStore } from "~lib/storage"
 import { getStoredConnections } from "~services/connection"
 import { handleSignRequest } from "~services/wallet"
 
+// MessageSender.origin is absent from webextension-polyfill's types, and a
+// content-script port always carries the page URL, so derive it from there.
+function getPortOrigin(port: Browser.Runtime.Port): string | undefined {
+  const url = port.sender?.url
+  if (!url) return undefined
+  try {
+    return new URL(url).origin
+  } catch {
+    return undefined
+  }
+}
+
 async function isConnectedToIdentity(
   origin: string | undefined,
   identityLabel: string | undefined
@@ -27,7 +39,9 @@ async function isConnectedToIdentity(
 }
 
 async function getActiveIdentityLabel(): Promise<string | null> {
-  const identity = (await browser.storage.local.get("selectedIdentity"))["selectedIdentity"] as Identity | undefined
+  const identity = (await browser.storage.local.get("selectedIdentity"))[
+    "selectedIdentity"
+  ] as Identity | undefined
   return identity?.label || null
 }
 
@@ -63,7 +77,9 @@ async function determineAndValidateIdentity({
     }
   } else {
     // If no identity explicitly provided by dApp, use the currently active one
-    const activeIdentityPublicInfo = (await browser.storage.local.get("selectedIdentity"))["selectedIdentity"] as Identity | undefined
+    const activeIdentityPublicInfo = (
+      await browser.storage.local.get("selectedIdentity")
+    )["selectedIdentity"] as Identity | undefined
     if (activeIdentityPublicInfo) {
       identityToUseForConnection.label = activeIdentityPublicInfo.label
       identityToUseForConnection.mspId = activeIdentityPublicInfo.mspId
@@ -107,13 +123,18 @@ async function openAuthorizationPopup(
   type: string
 ): Promise<any> {
   const { id } = message
-  const origin = port.sender?.origin
+  const origin = getPortOrigin(port)
   if (!origin) {
     throw new Error("Could not determine the origin of the request.")
   }
 
   // Save request for the popup to consume
-  await sessionStore.set(`pendingRequest_${id}`, { id, payload: message, type, origin })
+  await sessionStore.set(`pendingRequest_${id}`, {
+    id,
+    payload: message,
+    type,
+    origin
+  })
 
   browser.windows.create({
     url: browser.runtime.getURL(`popup.html?requestId=${id}`),
@@ -128,7 +149,7 @@ async function openAuthorizationPopup(
 }
 
 async function handleIdentitiesRequest(port: Browser.Runtime.Port) {
-  const origin = port.sender?.origin
+  const origin = getPortOrigin(port)
   if (!origin) {
     throw new Error("Could not determine the origin of the request.")
   }
@@ -165,7 +186,7 @@ async function handleIdentitiesRequest(port: Browser.Runtime.Port) {
 // Main request handler for port messages
 async function handlePortRequest(message: any, port: Browser.Runtime.Port) {
   const { method } = message
-  const origin = port.sender?.origin
+  const origin = getPortOrigin(port)
 
   switch (method) {
     case "fabric_requestIdentities":
@@ -214,7 +235,9 @@ async function handleSubscriptionRequest(
     origin
   })
 
-  const selectedPeer = (await browser.storage.local.get("selectedPeer"))["selectedPeer"] as Peer | undefined
+  const selectedPeer = (await browser.storage.local.get("selectedPeer"))[
+    "selectedPeer"
+  ] as Peer | undefined
   if (!selectedPeer || !selectedPeer.rpcUrl) {
     throw new Error(
       "No peer selected or peer RPC URL missing for subscription."
@@ -222,19 +245,22 @@ async function handleSubscriptionRequest(
   }
 
   // Get or create WebSocket connection for this peer
-  let ws = activeSubscriptionWebSockets.get(selectedPeer.rpcUrl)
-  if (!ws || ws.readyState !== WebSocket.OPEN) {
-    ws = await createWebSocketConnection(selectedPeer.rpcUrl, origin)
+  let socket = activeSubscriptionWebSockets.get(selectedPeer.rpcUrl)
+  if (!socket || socket.readyState !== WebSocket.OPEN) {
+    socket = await createWebSocketConnection(selectedPeer.rpcUrl, origin)
   }
 
   // Wait for the WebSocket to open if it's not already
-  if (ws.readyState === WebSocket.CONNECTING) {
-    await waitForWebSocketOpen(ws)
+  if (socket.readyState === WebSocket.CONNECTING) {
+    await waitForWebSocketOpen(socket)
   }
 
-  if (ws.readyState !== WebSocket.OPEN) {
+  if (socket.readyState !== WebSocket.OPEN) {
     throw new Error("WebSocket is not open for subscription.")
   }
+
+  // Narrowing on `socket` does not carry into the promise callback below.
+  const ws = socket
 
   const requestId = Math.random().toString(36).substring(2)
 
@@ -472,7 +498,7 @@ export const handlePortConnection = (port: Browser.Runtime.Port) => {
     portRequestIds.clear()
 
     // Clean up subscriptions for this disconnected port
-    const disconnectedOrigin = port.sender?.origin
+    const disconnectedOrigin = getPortOrigin(port)
     console.log(
       `Port disconnected for origin: ${disconnectedOrigin}. Port name: ${port.name}.`
     )

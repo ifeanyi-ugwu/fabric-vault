@@ -1,5 +1,5 @@
-import { useState } from "react"
 import { useNavigate } from "@tanstack/react-router"
+import { useState } from "react"
 import browser from "webextension-polyfill"
 
 import { Button } from "~/components/ui/button"
@@ -72,7 +72,11 @@ export function Peers() {
         />
       )}
 
-      <Modal isOpen={peerToEdit !== null} onOpenChange={(open) => { if (!open) setPeerToEdit(null) }}>
+      <Modal
+        isOpen={peerToEdit !== null}
+        onOpenChange={(open) => {
+          if (!open) setPeerToEdit(null)
+        }}>
         <Modal.Content>
           <Modal.Header>Edit Peer</Modal.Header>
           <Modal.Body>
@@ -100,7 +104,9 @@ const PeerForm = ({ initialPeer, onSubmit, onCancel }: PeerFormProps) => {
   const [peerName, setPeerName] = useState(initialPeer?.name ?? "")
   const [peerEndpoint, setPeerEndpoint] = useState(initialPeer?.endpoint ?? "")
   const [rpcUrl, setRpcUrl] = useState(initialPeer?.rpcUrl ?? "")
-  const [tlsRootCert, setTlsRootCert] = useState<string | null>(initialPeer?.tlsRootCert ?? null)
+  const [tlsRootCert, setTlsRootCert] = useState<string | null>(
+    initialPeer?.tlsRootCert ?? null
+  )
   const [tlsFileName, setTlsFileName] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -181,7 +187,9 @@ const PeerForm = ({ initialPeer, onSubmit, onCancel }: PeerFormProps) => {
       </div>
 
       <div className="form-actions">
-        <Button variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
         <Button type="submit">{isEditing ? "Save Changes" : "Add Peer"}</Button>
       </div>
     </form>

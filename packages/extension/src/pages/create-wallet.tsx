@@ -27,7 +27,9 @@ const CreateWallet = () => {
 
       <div className="onboarding-card">
         <h2 className="onboarding-title">Create wallet</h2>
-        <p className="onboarding-subtitle">Set a password to protect your keys</p>
+        <p className="onboarding-subtitle">
+          Set a password to protect your keys
+        </p>
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
@@ -63,7 +65,9 @@ const CreateWallet = () => {
 
         {vaultExists && (
           <div className="onboarding-footer">
-            <Button variant="text" onClick={() => navigate({ to: "/unlock-wallet" })}>
+            <Button
+              variant="text"
+              onClick={() => navigate({ to: "/unlock-wallet" })}>
               Unlock existing wallet
             </Button>
           </div>
